@@ -1,6 +1,6 @@
-# 使用者實機測試流程（v3）
+# 使用者實機測試流程（v3 + v4）
 
-> 給第一次拿到專案的人，從零跑完整個 v3「逐行真人錄音」流程。
+> 給第一次拿到專案的人，從零跑完整個 v3「逐行真人錄音」+ v4「多劇本 / 匯入」流程。
 > 含每個階段預期看到的 UI 反饋；建議用桌機 + Chrome（錄音可改用手機）。
 
 ## 0. 前置需求
@@ -15,15 +15,29 @@
 ```bash
 cd "Script rehearsal"
 npm install         # 約 30 秒（無 Whisper 依賴後變很快）
-npm run dev         # 會自動先跑 npm run sync-script
+npm run dev
 # 開啟 http://localhost:3000
 ```
 
-預期看到：
-- 首頁標題「劇本對練」
-- 角色選擇器（4 個按鈕：維克多 / 娜塔莉亞 / 胡利安 / 卡蘿莉娜）
-- 範圍 / 提示模式選擇器
-- 設定頁下半的「逐行錄音」區塊，每角色顯示進度條（`0 / 該角色總行數`）
+預期看到（**v6 / M28 起首開為空狀態**）：
+- 首頁標題「劇本對練平台」
+- 引導文案「尚未匯入任何劇本。請先匯入劇本以開始對練。」
+- 主 CTA「匯入劇本」
+- **不應出現**任何角色選擇器、範圍 / 提示模式、ScriptSwitcher、AudioManager
+
+## Step 0：空狀態（首開 / 清空 IDB 後，< 1 分鐘）
+
+驗證 v6 / M28「無預設劇本」行為。
+
+1. （首次跑）直接開 `http://localhost:3000`；或：
+   - DevTools → Application → IndexedDB → 刪除 `script-rehearsal-audio` DB
+   - 重新整理頁面
+2. 預期看到：標題 + 引導文案 + 「匯入劇本」CTA，**僅此而已**
+3. 點「匯入劇本」→ 跳轉到 `/scripts/import`
+4. 完成至少一份劇本的匯入（最簡單：純文字 tab 貼幾行 `角色：台詞`）
+5. 儲存後回首頁 → 立即看到正常 UI（劇本面板 / 角色 / 範圍 / 提示 / 開始對練）
+
+**通關條件**：清空 IDB 後一律落到空狀態；匯入後 `subscribeActiveScriptId` 觸發首頁自動切到正常 UI，無需手動重新整理。
 
 ## Step 1：v1.0 純 TTS 回歸（不錄音，< 3 分鐘）
 
@@ -98,12 +112,12 @@ npm run dev         # 會自動先跑 npm run sync-script
 
 **通關條件**：可覆蓋舊片段；對練時播新版。
 
-## Step 6：改 script.json → 橘色徽章 → 重錄缺漏行（3 分鐘）
+## Step 6：改劇本 → 橘色徽章 → 重錄缺漏行（3 分鐘）
 
 驗證 scriptHash 機制。
 
-1. 編輯**根目錄** `script.json`，改動維克多任何一行的內容（例如加個字）
-2. 跑 `npm run sync-script`（或重啟 dev）
+1. 在首頁的「劇本」面板點當前劇本的「編輯」進入 `/scripts/[id]/edit`
+2. 改動維克多任何一行的內容（例如加個字）後點儲存
 3. 回首頁
 4. 預期「逐行錄音」區塊維克多列出現**橘色「劇本已變更」徽章**
 5. 進對練頁仍可走，被動補的行（已錄但內容變動）依舊播放舊錄音
@@ -123,6 +137,45 @@ npm run dev         # 會自動先跑 npm run sync-script
 
 **通關條件**：刪除後完全回歸 v1.0 純 TTS 行為，無任何殘留。
 
+---
+
+## v4 補測：多劇本與匯入（M17–M22）
+
+> 完成上述 v3 七步後，繼續跑下面三步驗證 v4 行為。
+
+### Step 8：匯入純文字劇本 + 編輯（3 分鐘）
+
+1. 首頁右上點「匯入新劇本（文字 / PDF / 圖片）」→ `/scripts/import`
+2. 在「純文字」tab 貼入幾段對白（格式 `角色：台詞`，連空行視為換頁）
+3. 解析完跳到編輯頁，左側角色面板、中央多頁、行內可改 character / text / 上下移
+4. 改一兩行後點「儲存」→ 回首頁
+5. 首頁「劇本」面板出現新劇本（自動 active）；ScriptSwitcher 顯示 2 份
+
+**通關條件**：可在站內維護兩份劇本、切換流暢。
+
+### Step 9：多劇本錄音隔離（4 分鐘）
+
+驗證 M22 三段複合 key 不串音。前置：手動匯入兩份不同的劇本（劇本 A、劇本 B），確保兩者都有同一個 character key（例如「維」）。
+
+1. 在劇本 A 的「維」角色錄個 1–2 行
+2. 切到劇本 B，進「維」的錄音頁
+3. **預期**：劇本 B 的「維」進度為 `0 / N`，**不顯示**劇本 A 的錄音
+4. 在劇本 B 的「維」錄一行；切回劇本 A
+5. **預期**：劇本 A 的「維」進度仍為原本錄的 1–2 行（劇本 B 新錄的不會出現）
+6. DevTools → IndexedDB → `script-rehearsal-audio` → `audioSegments` → 看到 record 含 `scriptId` 欄位
+
+**通關條件**：兩份劇本同名角色完全獨立、彼此看不到對方的錄音。
+
+### Step 10：IndexedDB schema 升級回歸（< 2 分鐘）
+
+驗證 M22 v4 → v5 migration 正確。
+
+1. 在已升級 v5 的環境下：DevTools → IndexedDB → 確認 `audioSegments` 的 keyPath 為 `["scriptId", "characterKey", "globalIndex"]`
+2. 從乾淨環境（清掉 IDB）跑 `npm run dev` → 首頁落到空狀態（Step 0），匯入一份劇本後可順利錄音
+3. 若曾在 v3/v4 環境錄過音（手動 downgrade `DB_VERSION` 測，或保留歷史機器升級）：升級後 `audioSegments` 的舊 record 全部歸為 `scriptId: 'default'`；v6 起無自動 seed，需先匯入劇本後手動 `setActiveScriptId('default')`（或在 ScriptSwitcher 切換）才會看到舊錄音
+
+**通關條件**：v0 → v5、v3 → v5、v4 → v5 皆可順利開啟資料庫；舊錄音不丟失。
+
 ## 通關條件總覽（給驗收人）
 
 | # | 項目 |
@@ -133,9 +186,12 @@ npm run dev         # 會自動先跑 npm run sync-script
 | 4 | Step 3 關頁重開計數與 ✓ 標記正確 |
 | 5 | Step 4 全錄完對練時對應行播放真人錄音 + StatusBar 徽章正確 |
 | 6 | Step 5 重錄覆蓋舊片段；對練播新版 |
-| 7 | Step 6 改 script.json 後設定頁出現橘色徽章；全部重錄後徽章消失 |
+| 7 | Step 6 在編輯頁改劇本後設定頁出現橘色徽章；全部重錄後徽章消失 |
 | 8 | Step 7 刪除全部後回歸純 TTS |
-| 9 | DevTools → IndexedDB → `script-rehearsal-audio` 只有 `audioSegments` 一個 store |
+| 9 | DevTools → IndexedDB → `script-rehearsal-audio` 有 `audioSegments`（keyPath 含 scriptId）+ `scripts` 兩個 store |
 | 10 | 整段流程 console 無 error / warning（autoplay 提示可忽略） |
+| 11 | Step 8 純文字匯入並編輯後可儲存為新劇本，ScriptSwitcher 顯示 2 份 |
+| 12 | Step 9 同名角色不同劇本錄音完全隔離（看不到對方的進度） |
+| 13 | Step 10 IDB schema 為 v5、舊錄音升級後歸為 `scriptId: 'default'` |
 
-通過全部 10 項即代表 v3 在你的環境正常工作。
+通過全部 13 項即代表 v3 + v4 在你的環境正常工作。

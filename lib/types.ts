@@ -137,13 +137,15 @@ export type RehearsalStatus =
   | "paused"
   | "done";
 
-// ---------- 音檔片段（v3 / SPEC-AUDIO §4.1） ----------
+// ---------- 音檔片段（v4 / SPEC-AUDIO §4.1 + SPEC-SCRIPT §3） ----------
 
 /**
- * 單行對應的音檔片段（一角色 × 一行 = 一筆），存於 IndexedDB `audioSegments` store。
+ * 單行對應的音檔片段（一劇本 × 一角色 × 一行 = 一筆），存於 IndexedDB `audioSegments` store。
  *
- * 採複合 key `[characterKey, globalIndex]`，並建立 `byCharacter` index 以利按角色撈全集。
+ * v5 schema：採三段複合 key `[scriptId, characterKey, globalIndex]`，
+ * 並建立 `byCharacter` index（單欄 `characterKey`）以利按角色撈全集。
  *
+ * - scriptId：對應 ScriptRecord.id（多劇本支援，M22+）
  * - characterKey：對應 Script.characters 的鍵（簡稱）
  * - globalIndex：對應 FlatLine.globalIndex
  * - blob：該行的真人錄音音檔片段
@@ -153,6 +155,7 @@ export type RehearsalStatus =
  *               讀取時與當前劇本 hash 比對，可偵測「劇本已變更，需重錄」。
  */
 export type AudioSegmentRecord = {
+  scriptId: string;
   characterKey: string;
   globalIndex: number;
   blob: Blob;

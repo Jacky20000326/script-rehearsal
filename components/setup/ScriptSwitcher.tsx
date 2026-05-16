@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * ScriptSwitcher — 劇本切換器（M18）
+ * ScriptSwitcher — 劇本切換器（M18，M28 放寬限制）
  *
  * 功能：
  *   1. 顯示所有已儲存劇本（依 updatedAt desc）
  *   2. 切換 active scriptId（觸發 useScript 重新載入）
  *   3. inline rename
- *   4. 刪除（含 confirm；不允許刪除唯一一份；刪除 active 後自動切到第一筆）
+ *   4. 刪除（含 confirm；可刪光所有劇本，刪光後 clearActiveScriptId → 首頁回到空狀態）
  *
  * 自管 state：元件內部呼叫 lib/scriptStorage，並訂閱 active scriptId 變更
  * 以同步顯示。父層僅需放置 `<ScriptSwitcher />`。
@@ -17,7 +17,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
+import Link from "next/link";
 import {
+  clearActiveScriptId,
   deleteScript,
   getActiveScriptId,
   listScripts,
@@ -105,19 +107,21 @@ export function ScriptSwitcher(): ReactElement {
 
   const handleDelete = async (record: ScriptRecord): Promise<void> => {
     if (state.kind !== "ready") return;
-    if (state.scripts.length <= 1) {
-      window.alert("至少需保留一份劇本，無法刪除。");
-      return;
-    }
+    const isLast = state.scripts.length <= 1;
     const confirmed = window.confirm(
-      `確定要刪除「${record.name}」嗎？此動作無法復原。`,
+      isLast
+        ? `確定要刪除「${record.name}」嗎？這是最後一份劇本，刪除後將回到空狀態（需重新匯入才能對練）。此動作無法復原。`
+        : `確定要刪除「${record.name}」嗎？此動作無法復原。`,
     );
     if (!confirmed) return;
     setBusy(true);
     try {
       await deleteScript(record.id);
-      if (record.id === state.activeId) {
-        const remaining = state.scripts.filter((s) => s.id !== record.id);
+      // 重新撈一次最新清單，依結果決定如何處置 active id
+      const remaining = await listScripts();
+      if (remaining.length === 0) {
+        clearActiveScriptId();
+      } else if (record.id === state.activeId) {
         const fallback = remaining[0];
         if (fallback) setActiveScriptId(fallback.id);
       }
@@ -153,7 +157,6 @@ export function ScriptSwitcher(): ReactElement {
   }
 
   const { scripts, activeId } = state;
-  const onlyOne = scripts.length <= 1;
 
   return (
     <section
@@ -226,6 +229,12 @@ export function ScriptSwitcher(): ReactElement {
 
                 {!isEditing && (
                   <>
+                    <Link
+                      href={`/scripts/${encodeURIComponent(record.id)}/edit`}
+                      className="rounded-sm border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:bg-zinc-800"
+                    >
+                      ✎ 編輯
+                    </Link>
                     <button
                       type="button"
                       onClick={() => handleStartRename(record)}
@@ -237,8 +246,7 @@ export function ScriptSwitcher(): ReactElement {
                     <button
                       type="button"
                       onClick={() => void handleDelete(record)}
-                      disabled={busy || onlyOne}
-                      title={onlyOne ? "至少需保留一份劇本" : undefined}
+                      disabled={busy}
                       className="rounded-sm border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       刪除

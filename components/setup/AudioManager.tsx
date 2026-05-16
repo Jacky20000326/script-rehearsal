@@ -31,6 +31,8 @@ export type AudioManagerProps = {
   readonly characters: readonly CharacterRef[];
   /** 當前劇本；為 null 時尚未載入完成，顯示 loading 文案 */
   readonly script: Script | null;
+  /** 當前 active scriptId；為 null 時等同尚未載入（顯示 loading） */
+  readonly scriptId: string | null;
 };
 
 // ---------- 徽章顯示 ----------
@@ -85,6 +87,7 @@ function badgeText(
 export function AudioManager({
   characters,
   script,
+  scriptId,
 }: AudioManagerProps): ReactElement {
   const characterRefs = useMemo(
     () => characters.map((c) => ({ key: c.key })),
@@ -92,6 +95,7 @@ export function AudioManager({
   );
 
   const { progress, loading, removeAll } = useAudioSegments(
+    scriptId,
     characterRefs,
     script,
   );

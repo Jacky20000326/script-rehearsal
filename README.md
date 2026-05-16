@@ -5,12 +5,14 @@
 ## 功能特色
 
 - 黑底白字提詞器風格 UI，極簡無干擾
-- 4 角色（維克多 / 娜塔莉亞 / 胡利安 / 卡蘿莉娜）對練
-- 三種練習範圍：全劇 / 單頁（41 / 42 / 43 / 44）/ 自訂起訖行
+- 首次使用需先匯入劇本（文字 / PDF / 圖片 OCR），無內建預設劇本
+- 任意數量角色對練（每份劇本依匯入內容自動產生角色清單）
+- 三種練習範圍：全劇 / 單頁 / 自訂起訖行
 - 三種提示模式：完整 / 前 5 字 / 隱藏（從走戲到背稿驗收的不同階段）
 - 中文 STT 語音辨識比對（LCS 字元覆蓋率，60% 通過門檻）
 - 多角色 TTS 自動音色配對（依瀏覽器可用 voice 分配，並用 pitch / rate 微差區分撞聲）
 - **v3：逐行真人錄音** — 不喜歡機器人嗓音可在錄音頁逐句錄製對手台詞，對練時自動播放真人錄音、未錄的行自動 fallback TTS
+- **v4：多劇本管理 + 站內匯入** — 同一台機器可維護多份劇本，支援純文字 / PDF / 圖片 OCR 匯入並在站內編輯；每份劇本的錄音獨立隔離（不串音）
 - 鍵盤快捷鍵 + 點任一行跳轉
 - `localStorage` 自動記憶上次練到哪、各角色累計練習次數
 - 純前端：無後端、無上傳、無使用者帳號
@@ -107,14 +109,13 @@ npm run typecheck
 
 `scriptHash` 是該角色任一筆片段的 hash 與當前劇本 hash 的對照；若刪光該角色全部片段，徽章會回歸無顯示。
 
-## 替換為自己的劇本
+## 匯入自己的劇本
 
-> 本專案有**根目錄 `script.json`** 與 **`public/script.json`** 兩處。
-> 根目錄是「來源」（給你編輯）、`public/` 才是 Next.js 真正載入的位置。
-> `package.json` 內已加上 `predev` / `prebuild` 自動同步腳本（執行 `npm run dev` 或 `npm run build` 都會先 `cp script.json public/script.json`）。
-> 不重啟 dev server 也可以手動執行 `npm run sync-script` 立即同步。
+> v6（M28）起無內建預設劇本：第一次開啟 `/` 會顯示空狀態 + 「匯入劇本」CTA。
+> 點 CTA 進入 `/scripts/import`，提供純文字 / PDF / 圖片 OCR 三種匯入方式（詳見下文「v4 多劇本與匯入」章節）。
+> 匯入後劇本獨立存於 IndexedDB，可在首頁的「劇本」面板切換 / 重命名 / 編輯 / 刪除。
 
-劇本資料位於 `public/script.json`，格式為：
+劇本資料結構為：
 
 ```ts
 type Script = {
@@ -132,15 +133,11 @@ type Line =
   | { type: 'stage_direction'; text: string }; // 舞台指示，僅顯示不朗讀
 ```
 
-範例見當前 `public/script.json`（內容為一齣 4 角色、4 頁的劇本）。
-**修改流程**：
-1. 編輯**根目錄** `script.json`（不要直接改 `public/script.json`，會被覆蓋）
-2. 執行 `npm run sync-script`（或重啟 dev / build，會自動觸發）
-3. 重新整理頁面即生效；無需重新建置
+匯入後若需校稿，可在劇本面板點「編輯」進入 `/scripts/[id]/edit` 調整頁碼 / 角色 key / 行型別 / 行序等。
 
-> 若你已逐行錄過音，**改劇本後 `scriptHash` 會對不上**，設定頁該角色會出現橘色徽章 — 進錄音頁重錄缺漏 / 變動的行即可。
+> 若你已逐行錄過音，**修改劇本內容後 `scriptHash` 會對不上**，設定頁該角色會出現橘色徽章 — 進錄音頁重錄缺漏 / 變動的行即可。
 
-> 若改了角色數量或 key，記得清掉 `localStorage` 中的 `script-rehearsal:practice-state`
+> 若改了角色 key，記得清掉 `localStorage` 中的 `script-rehearsal:practice-state`
 > （DevTools → Application → Local Storage），避免「上次練到」指向不存在的角色。
 
 ## 隱私說明
@@ -163,26 +160,61 @@ type Line =
 
 無任何執行期外部依賴；STT 比對演算法為自實作 LCS（Longest Common Subsequence）字元覆蓋率。
 
-## IndexedDB schema（v3）
+## IndexedDB schema（v5）
 
-資料庫 `script-rehearsal-audio` 僅存在單一 store：
+資料庫 `script-rehearsal-audio` 包含兩個 store：
 
 ```
-audioSegments  (keyPath: [characterKey, globalIndex])
+scripts (keyPath: id)             # v4 引入（M17）
+  └─ record {
+       id:         string         // 'default' / UUID
+       name:       string
+       script:     Script
+       createdAt:  number
+       updatedAt:  number
+       source:     'default' | 'plain-text' | 'pdf' | 'image-ocr'
+     }
+
+audioSegments  (keyPath: [scriptId, characterKey, globalIndex])   # v5 升級（M22）
   ├─ index byCharacter (characterKey, 非 unique)
   └─ record {
+       scriptId:     string       // M22 新增；對應 ScriptRecord.id
        characterKey: string
        globalIndex:  number
-       blob:         Blob       // MediaRecorder 產出的音檔片段
+       blob:         Blob         // MediaRecorder 產出的音檔片段
        mimeType:     string
        durationMs:   number
        sizeBytes:    number
-       recordedAt:   number     // epoch ms
-       scriptHash:   string     // 錄製當下劇本 SHA-256
+       recordedAt:   number       // epoch ms
+       scriptHash:   string       // 錄製當下劇本 SHA-256
      }
 ```
 
-upgrade 時若偵測到舊三 store schema（`audioFiles` / `transcriptions` / `alignments`）會直接 delete 後重建 `audioSegments`；自 v2 升 v3 時則以 cursor 遍歷 `audioSegments`，將舊 record 缺漏的 `scriptHash` 欄位補為空字串 sentinel。（v3 alpha 既有錄音遇到 `scriptHash` 為空時將標為「劇本變更」，建議重錄該角色取得乾淨資料。）
+歷代升級：
+- **v2** → 拋棄 v1 三 store（`audioFiles` / `transcriptions` / `alignments`），建立 `audioSegments` 單一 store
+- **v3** → cursor 遍歷補 `scriptHash` 欄位
+- **v4** → 新增 `scripts` store
+- **v5（M22）** → delete + recreate `audioSegments`，keyPath 擴充為 `[scriptId, characterKey, globalIndex]`；既有 record 補 `scriptId = 'default'` 後寫回。所有 migration 在 `onupgradeneeded` 同一個 versionchange transaction 內完成。
+
+v3 alpha 既有錄音若 `scriptHash` 為空仍會標為「劇本變更」，建議重錄該角色取得乾淨資料。
+
+## v4 多劇本與匯入
+
+詳見 [SPEC-SCRIPT.md](./SPEC-SCRIPT.md)。
+
+**劇本管理**：首頁頂部的「劇本」面板可以切換 / 重命名 / 編輯 / 刪除任意一份已儲存的劇本。v6（M28）起允許刪光所有劇本回到空狀態，且無內建預設劇本 — 第一次開啟需先匯入。
+
+**匯入新劇本**：首頁右上「匯入新劇本（文字 / PDF / 圖片）」進入 `/scripts/import`，三 tab：
+
+- **純文字**：直接貼入 / 上傳 .txt
+- **PDF**：透過 pdfjs-dist 解析文字層（無文字層的掃描版 PDF 請改用圖片 OCR）
+- **圖片 OCR**：透過 Tesseract.js 純前端 OCR（繁中 + 英文語言包，每張圖約 5–20 秒）
+
+解析後自動跳到編輯頁 `/scripts/[id]/edit` 可校稿（多頁、角色面板、行型別切換、上下移、插入 / 刪除等），點「儲存」後寫入 IDB；儲存當下會 setActiveScriptId 自動切過去。
+
+**多劇本錄音隔離**：每份劇本的逐行錄音以 `[scriptId, characterKey, globalIndex]` 三段複合 key 獨立儲存，**不同劇本同名角色不會串音**。切換劇本後設定頁的進度徽章 / 對練的真人錄音查詢都會自動套用新劇本。
+
+**OCR 限制**：直書劇本識別率較低；建議橫書、高對比影像。語言包首次載入會有額外的網路請求。
 
 ## 檔案結構
 
@@ -223,7 +255,7 @@ upgrade 時若偵測到舊三 store schema（`audioFiles` / `transcriptions` / `
 │   ├── useAudioSegments.ts       # 各角色逐行錄音進度
 │   └── useRehearsal.ts           # 整合 hook（狀態機 + TTS + STT + 持久化 + 音檔播放）
 ├── public/
-│   └── script.json               # 劇本資料
+│   └── pdf.worker.min.mjs        # pdfjs-dist worker（v4 匯入 PDF 用）
 ├── SPEC.md                       # v1.0 產品規格
 ├── SPEC-AUDIO.md                 # v2/v3 音檔功能規格（v2 章節保留考古）
 ├── PROGRESS.md                   # 開發進度紀錄
@@ -236,8 +268,7 @@ upgrade 時若偵測到舊三 store schema（`audioFiles` / `transcriptions` / `
 - TTS voice 依瀏覽器與作業系統而異；不同電腦上音色會有差異，無法保證一致
 - STT 中文準確率約 70–85%，嘈雜環境會明顯下降；可隨時用空白鍵推進
 - 首次開啟可能要等 1–2 秒讓中文 voice 載入完成
-- 沒有提供「劇本編輯器」UI，需手動編輯 `public/script.json`
-- 4 個角色的對練流程，多人同時對練需要拓展
+- 多人同時對練（同房間）需要進一步拓展，目前僅支援一人多角輪流練習
 - 練習進度持久化採節流寫入（每 5 行寫一次 + done / unmount 補寫），極端情境下可能漏寫最後幾行
 - 每行錄音上限 60 秒；超過自動停止
 - IndexedDB 配額視瀏覽器 / 裝置而異（通常數 GB），全劇逐行錄音遠低於限制
@@ -245,9 +276,10 @@ upgrade 時若偵測到舊三 store schema（`audioFiles` / `transcriptions` / `
 ## 開發與規格文件
 
 - [`SPEC.md`](./SPEC.md)：v1.0 產品規格
-- [`SPEC-AUDIO.md`](./SPEC-AUDIO.md)：v2/v3 音檔功能規格（v2 章節保留考古）
-- [`PROGRESS.md`](./PROGRESS.md)：所有里程碑（M1+）的開發紀錄與 QA 結果
-- [`TEST-FLOW.md`](./TEST-FLOW.md)：v3 使用者實機測試流程
+- [`SPEC-AUDIO.md`](./SPEC-AUDIO.md)：v2/v3 音檔功能規格（v2 章節保留考古；v3 為當前實作）
+- [`SPEC-SCRIPT.md`](./SPEC-SCRIPT.md)：v4 多劇本管理 + 匯入規格（M17–M22）
+- [`PROGRESS.md`](./PROGRESS.md)：所有里程碑（M1+）的開發紀錄與 QA 結果；v5（M23–M27）為元件重構，UI/邏輯解耦完成、規格 0 變更
+- [`TEST-FLOW.md`](./TEST-FLOW.md)：v3/v4 使用者實機測試流程
 
 ## 授權
 

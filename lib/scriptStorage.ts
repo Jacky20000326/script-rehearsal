@@ -1,54 +1,28 @@
 /**
- * 多劇本資料層（v4 / M17+）
+ * 多劇本資料層（v4 / M17+，v5 / M27 共用 idb 層）
  *
  * 將「劇本記錄」（ScriptRecord）存於同一個 `script-rehearsal-audio` DB 的
- * `scripts` store；DB 連線與升級邏輯沿用 audioStorage.openAudioDB()，
+ * `scripts` store；DB 連線與升級邏輯沿用 `lib/idb/connection` 的 `openAudioDB()`，
  * 避免在 module 層另外開一條 IndexedDB 連線。
  *
  * Active scriptId 為輕量的「當前選用」指標，使用 localStorage 同步存取：
  *   key = 'script-rehearsal:active-script-id'
  *
- * SSR 守衛：與 audioStorage 同樣，所有公開函式進入時先檢查 `typeof window`。
+ * SSR 守衛：複用 `lib/idb/promise` 的 `assertClient`。
  */
 
-import { openAudioDB, STORE_SCRIPTS } from "./audioStorage";
+import { STORE_SCRIPTS, openAudioDB } from "./idb/connection";
+import {
+  assertClient,
+  awaitTransaction,
+  promisifyRequest,
+} from "./idb/promise";
 import type { Script, ScriptId, ScriptRecord } from "./types";
 
 // ---------- 常數 ----------
 
 export const ACTIVE_SCRIPT_ID_KEY = "script-rehearsal:active-script-id";
 export const ACTIVE_SCRIPT_CHANGED_EVENT = "script-rehearsal:active-script-changed";
-
-// ---------- 內部工具 ----------
-
-function assertClient(fnName: string): void {
-  if (typeof window === "undefined") {
-    throw new Error(`scriptStorage.${fnName}() 僅可於瀏覽器端呼叫`);
-  }
-  if (typeof window.indexedDB === "undefined") {
-    throw new Error("此瀏覽器不支援 IndexedDB，無法使用劇本儲存功能");
-  }
-}
-
-function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () =>
-      reject(
-        request.error ?? new Error("IndexedDB 操作失敗（未提供詳細錯誤）"),
-      );
-  });
-}
-
-function awaitTransaction(tx: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () =>
-      reject(tx.error ?? new Error("IndexedDB 交易失敗（未提供詳細錯誤）"));
-    tx.onabort = () =>
-      reject(tx.error ?? new Error("IndexedDB 交易被中止"));
-  });
-}
 
 // ---------- 結構驗證 ----------
 
@@ -60,10 +34,7 @@ function isScript(value: unknown): value is Script {
   if (!isPlainObject(value)) return false;
   const characters = value.characters;
   const pages = value.pages;
-  return (
-    isPlainObject(characters) &&
-    Array.isArray(pages)
-  );
+  return isPlainObject(characters) && Array.isArray(pages);
 }
 
 const VALID_SOURCES: ReadonlySet<ScriptRecord["source"]> = new Set([
@@ -92,7 +63,7 @@ function isScriptRecord(value: unknown): value is ScriptRecord {
  * 列出所有劇本記錄，依 updatedAt desc 排序。
  */
 export async function listScripts(): Promise<ScriptRecord[]> {
-  assertClient("listScripts");
+  assertClient("scriptStorage.listScripts");
   const db = await openAudioDB();
   const tx = db.transaction(STORE_SCRIPTS, "readonly");
   const store = tx.objectStore(STORE_SCRIPTS);
@@ -107,7 +78,7 @@ export async function listScripts(): Promise<ScriptRecord[]> {
  * 讀取指定 id 的劇本記錄；不存在或結構不符回 null。
  */
 export async function getScript(id: ScriptId): Promise<ScriptRecord | null> {
-  assertClient("getScript");
+  assertClient("scriptStorage.getScript");
   const db = await openAudioDB();
   const tx = db.transaction(STORE_SCRIPTS, "readonly");
   const store = tx.objectStore(STORE_SCRIPTS);
@@ -120,7 +91,7 @@ export async function getScript(id: ScriptId): Promise<ScriptRecord | null> {
  * 寫入或覆蓋劇本記錄（put：id 已存在則覆蓋）。
  */
 export async function putScript(record: ScriptRecord): Promise<void> {
-  assertClient("putScript");
+  assertClient("scriptStorage.putScript");
   const db = await openAudioDB();
   const tx = db.transaction(STORE_SCRIPTS, "readwrite");
   const store = tx.objectStore(STORE_SCRIPTS);
@@ -132,7 +103,7 @@ export async function putScript(record: ScriptRecord): Promise<void> {
  * 刪除指定 id 的劇本記錄。
  */
 export async function deleteScript(id: ScriptId): Promise<void> {
-  assertClient("deleteScript");
+  assertClient("scriptStorage.deleteScript");
   const db = await openAudioDB();
   const tx = db.transaction(STORE_SCRIPTS, "readwrite");
   const store = tx.objectStore(STORE_SCRIPTS);
@@ -148,7 +119,7 @@ export async function renameScript(
   id: ScriptId,
   name: string,
 ): Promise<void> {
-  assertClient("renameScript");
+  assertClient("scriptStorage.renameScript");
   const trimmed = name.trim();
   if (trimmed.length === 0) {
     throw new Error("劇本名稱不可為空");
@@ -199,6 +170,30 @@ export function setActiveScriptId(id: ScriptId): void {
     );
   } catch {
     // 老瀏覽器或 jsdom 無 CustomEvent 構造器 → 忽略，同分頁更新失敗不影響資料正確性
+  }
+}
+
+/**
+ * 清除目前選用的 scriptId（active id → null）；SSR 環境靜默 no-op。
+ *
+ * 用途：刪除最後一份劇本後，沒有可選的 active 劇本，回到首頁空狀態。
+ * 行為與 setActiveScriptId 一致：移除 localStorage 並通知同分頁訂閱者（detail = null）。
+ */
+export function clearActiveScriptId(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(ACTIVE_SCRIPT_ID_KEY);
+  } catch {
+    // privacy mode → 靜默
+  }
+  try {
+    window.dispatchEvent(
+      new CustomEvent<ScriptId | null>(ACTIVE_SCRIPT_CHANGED_EVENT, {
+        detail: null,
+      }),
+    );
+  } catch {
+    // 老瀏覽器或 jsdom 無 CustomEvent 構造器 → 忽略
   }
 }
 

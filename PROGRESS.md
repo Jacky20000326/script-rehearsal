@@ -8,19 +8,38 @@
 
 ## 專案狀態
 
-- **v1.0 完工** / **v2 完工（已棄用）** / **v3 完工**
+- **v1.0 完工** / **v2 完工（已棄用）** / **v3 完工** / **v4 完工** / **v5 完工** / **v6 進行中（M28 + M29 完成）**
 - **v1.0 完工日期**：2026-05-14；全部里程碑（M0–M6）通過，QA 全綠
 - **v2 完工日期**：2026-05-14；全部里程碑（M7–M11）通過，QA 全綠；但因模型體積、行動裝置體驗、中文準確率等問題棄用，改採 v3 逐段錄製
 - **v3 完工日期**：2026-05-15；全部里程碑（M12–M16）通過，QA 全綠；逐段引導錄製 + IndexedDB 單 store（DB_VERSION = 3）+ scriptHash 劇本變更橘色徽章 + 完整移除 `@xenova/transformers`（-77 packages）；v3.11 七條驗收標準逐條達成
-- **v4 進行中**：M17 🟢（多劇本資料層骨架，2026-05-16）；M18–M22 規劃中（useScript 改源 → 純文字匯入 → PDF → Tesseract.js OCR → audioSegments 綁 scriptId）
-- **總里程碑數**：**18 個全 🟢**（M0–M17），v4 共 6 個里程碑（1/6 完成）
+- **v4 完工日期**：2026-05-16；全部里程碑（M17–M22）通過，QA 全綠；多劇本資料層（IndexedDB v5、`scripts` store + 三段複合 key `[scriptId, characterKey, globalIndex]`）、純文字 / PDF / 圖片 OCR 三路匯入管線、編輯 UI、audioSegments 跨劇本隔離；新增 SPEC-SCRIPT.md
+- **v5 完工日期**：2026-05-16；全部里程碑（M23–M27）通過，QA 全綠；五個肥大檔（ScriptEditClient / PlainTextImportClient / RecordClient / useRehearsal / audioStorage）逐個 UI/邏輯解耦或工具分層，**0 規格變更、0 行為變更、0 簽名變更**；新增 `lib/idb/` 子層（promise / migration / connection）將 IndexedDB 連線、Promise 化、schema 升級拆出成純工具
+- **v6 啟動日期**：2026-05-16；UI 全面重塑計畫，加入「資深 UI 設計師」角色至 dev-trio；4 個里程碑（M28–M31），目前 **2/4 完成**（M28 設計系統 tokens + UI 基礎元件、M29 Landing Page + 路由搬移），餘 M30 既有頁面套色 / M31 SPEC-UI.md + 整合驗證
+- **總里程碑數**：**30 個全 🟢**（M0–M29），v6 剩 M30 / M31 待做
 - **v1.0 規模**：21 個 ts/tsx 檔、4064 行、6 元件、5 hooks、2 路由、3 個執行期依賴（next / react / react-dom）
 - **v2 規模新增**：IndexedDB 三 store schema + Whisper Worker + LCS 對齊 + 校正 UI + AudioPlayer；新增路由 `/calibrate/[characterKey]`；新增執行期依賴 `@xenova/transformers`；新增 hooks `useAudioFiles` / `useTranscription` / `useAlignment` / `useAudioPreview`；新增元件 `AudioManager` / `CalibrationClient` / `Waveform` / `AlignedLineList`
 - **v3 規模新增（截至 M12）**：IndexedDB schema 升至 v2、單一 `audioSegments` store（複合 key `[characterKey, globalIndex]`、`byCharacter` index）；新增 `AudioSegmentRecord` 型別與五個新 API；v2 舊 10 個匯出保留為軟著陸 stub，避免破壞 M13–M15 前的 hooks/元件編譯
-- **v1.0 規模**：21 個 ts/tsx 檔、4064 行、6 元件、5 hooks、2 路由、3 個執行期依賴（next / react / react-dom）
-- **v2 規模新增**：IndexedDB 三 store schema + Whisper Worker + LCS 對齊 + 校正 UI + AudioPlayer；新增路由 `/calibrate/[characterKey]`；新增執行期依賴 `@xenova/transformers`；新增 hooks `useAudioFiles` / `useTranscription` / `useAlignment` / `useAudioPreview`；新增元件 `AudioManager` / `CalibrationClient` / `Waveform` / `AlignedLineList`
-- **文件**：**5 份**（SPEC.md / SPEC-AUDIO.md / PROGRESS.md / README.md / TEST-FLOW.md）
-- **操作指引**：請見 [README.md](./README.md)；實機測試流程請見 [TEST-FLOW.md](./TEST-FLOW.md)
+- **v4 規模新增**：`lib/scriptStorage.ts` + `lib/scriptParser.ts` + `lib/pdfExtract.ts` + `lib/ocrService.ts` + `lib/scriptEdit.ts`；新增路由 `/scripts/import` 與 `/scripts/[id]/edit`；多劇本切換器與編輯 UI；DB_VERSION 升至 5、audioSegments keyPath 升為三段
+- **v5 規模新增**：5 個主檔重構拆分 — `ScriptEditClient.tsx`（876 → ~234）/ `PlainTextImportClient.tsx`（598 → ~194）/ `RecordClient.tsx`（564 → ~242）/ `useRehearsal.ts`（550 → ~301）/ `audioStorage.ts`（508 → 240）；新增 `lib/idb/promise.ts` + `lib/idb/migration.ts` + `lib/idb/connection.ts` 三個 lib/idb 純工具檔；新增 hooks `useCreateScript` / `useScriptEdit` / `useOcrImport` / `usePdfImport` / `usePreviewUrl` / `useAudioPlaybackEffect` / `useTTSEffect` / `useSTTEffect` / `useRehearsalPersistence` / `useRecordingTimer`；新增 record 子元件 `LineDisplay` / `MiniMap` / `RecordHeader` / `RecordStatusScreens` / `RecorderControls`
+- **v6 規模新增（截至 M29）**：路由分家 `/` = Landing（SSG, server component）/ `/setup` = 原首頁設定流程（client）；新增 `components/landing/` 五件套（SiteHeader / Hero / Features / CallToAction / SiteFooter）+ `components/ui/` 基礎（Button 含 `<LinkButton>` 三變體 × 兩尺寸 / Card）；`app/globals.css` 注入 12 色亮色 token + Tailwind v4 `@theme` + 8 級字級階層 class（display / h1 / h2 / h3 / body-lg / body / small / caption）；`app/layout.tsx` 以 `next/font/google` 載入 Noto Serif TC + Noto Sans TC 並接到 CSS variable；風格基調：紙感米底 `#F6F2EA` + 炭墨字 `#1C1A17` + 焦糖棕 accent `#7A4A2B`；**0 漸層、0 玻璃擬態、0 發光、0 emoji、0 AI 套話**；既有頁面 M30 才換色，本輪仍維持 v5 視覺
+- **文件**：**6 份**（SPEC.md / SPEC-AUDIO.md / SPEC-SCRIPT.md / PROGRESS.md / README.md / TEST-FLOW.md）
+- **操作指引**：請見 [README.md](./README.md)；實機測試流程請見 [TEST-FLOW.md](./TEST-FLOW.md)；v4 多劇本架構請見 [SPEC-SCRIPT.md](./SPEC-SCRIPT.md)
+
+---
+
+## v6 — UI 風格重塑 + Landing Page（進行中）
+
+> 規劃文件：待 M31 撰寫 SPEC-UI.md。
+> 目標：把現有「黑底白字 dev 工具感」改造為「紙感、安靜、有印刷品質感」的筆記 App 風格，零 AI 感；新增 Landing Page 讓不熟系統的訪客 30 秒內理解。
+> 新流程：dev-trio **新增 UI 設計師角色**（PM → UI Designer → Dev → QA），由設計師交付色票 / 字級 / 線框純文字文件，Dev 照表實作。
+> 4 個里程碑：M28 設計系統 tokens & UI 基礎元件 → M29 Landing Page + 路由搬移 → M30 既有頁面套色 → M31 SPEC-UI.md + 整合驗證。
+
+| 里程碑                                            | 狀態    | 開始       | 完成       | QA 狀態 |
+| ------------------------------------------------- | ------- | ---------- | ---------- | ------- |
+| M28 — 設計系統 tokens + UI 基礎元件               | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M29 — Landing Page + `app/page.tsx` 搬至 `/setup` | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M30 — 既有頁面（setup / rehearse / scripts / record）套用新風格 | ⚪ 未開始 | —          | —          | —       |
+| M31 — SPEC-UI.md + 整合驗證 + v6 結案             | ⚪ 未開始 | —          | —          | —       |
 
 ---
 
@@ -64,25 +83,119 @@
 
 ---
 
-## v4 — 多劇本管理 + OCR 匯入（進行中）
+## v4 — 多劇本管理 + OCR 匯入（已結案）
 
-> 規劃文件：`SPEC-SCRIPT.md`（待 M22 撰寫；本期使用此 PROGRESS 章節作為輕量規格）
-> 目標：支援使用者匯入純文字／PDF／圖片劇本，採 Tesseract.js 純前端 OCR；建立多劇本管理（IndexedDB `scripts` store）+ 編輯 UI 修正解析錯誤。
+> 規劃文件：[SPEC-SCRIPT.md](./SPEC-SCRIPT.md)（v1.0，M22 完成）
+> 目標：支援使用者匯入純文字／PDF／圖片劇本，採 Tesseract.js 純前端 OCR；建立多劇本管理（IndexedDB `scripts` store）+ 編輯 UI 修正解析錯誤；audioSegments 綁 scriptId 不串音。
 > 6 個里程碑：M17 資料層 → M18 useScript 改源 + 切換器 → M19 純文字匯入 + 編輯 UI → M20 PDF 匯入 → M21 圖片 OCR → M22 audioSegments 綁 scriptId + 文件同步。
 
-| 里程碑                                                     | 狀態     | 開始       | 完成       | QA 狀態     |
-| ---------------------------------------------------------- | -------- | ---------- | ---------- | ----------- |
-| M17 — 多劇本資料層基礎（scripts store + seed default）     | 🟢 完成  | 2026-05-16 | 2026-05-16 | 🟢 通過     |
-| M18 — useScript 改源 + 首頁 ScriptSwitcher                 | ⚪ 未開始 | —          | —          | —           |
-| M19 — 純文字匯入 + 解析器 + 編輯 UI                        | ⚪ 未開始 | —          | —          | —           |
-| M20 — PDF 匯入（pdfjs-dist）                               | ⚪ 未開始 | —          | —          | —           |
-| M21 — 圖片 OCR（Tesseract.js）                             | ⚪ 未開始 | —          | —          | —           |
-| M22 — audioSegments 綁 scriptId + 文件同步 + v4 完工       | ⚪ 未開始 | —          | —          | —           |
+| 里程碑                                                     | 狀態    | 開始       | 完成       | QA 狀態 |
+| ---------------------------------------------------------- | ------- | ---------- | ---------- | ------- |
+| M17 — 多劇本資料層基礎（scripts store + seed default）     | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M18 — useScript 改源 + 首頁 ScriptSwitcher                 | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M19 — 純文字匯入 + 解析器 + 編輯 UI                        | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M20 — PDF 匯入（pdfjs-dist）+ 多頁編輯器                   | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M21 — 圖片 OCR（Tesseract.js）                             | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M22 — audioSegments 綁 scriptId + 文件同步 + v4 完工       | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+
+### M18 — useScript 改源 + 首頁 ScriptSwitcher
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+- `hooks/useScript.ts`：來源改為「先讀 active scriptId 對應 ScriptRecord，缺漏才 fallback `loadScript()`」；訂閱 `subscribeActiveScriptId` 後自動重載
+- `components/setup/ScriptSwitcher.tsx`（新增）：列出 scripts、切換 active、inline rename、刪除 confirm（不允許刪除唯一一份，刪除 active 後自動切到第一筆）
+- `app/page.tsx`：頂部插入 `<ScriptSwitcher />`
+
+### M19 — 純文字匯入 + 解析器 + 編輯 UI
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+- `lib/scriptParser.ts`（新增）：純文字 → Script 的啟發式解析器（`角色：台詞` / `（指示）` / 空行分頁）
+- `app/scripts/import/page.tsx`（新增）：三 tab 匯入入口骨架
+- `components/scripts/PlainTextImportClient.tsx`（新增）：純文字 tab UI
+- `components/scripts/ScriptEditClient.tsx`（新增）：編輯頁初版（單頁）
+- `app/scripts/[id]/edit/page.tsx`（新增）：編輯頁 server component
+
+### M20 — PDF 匯入 + 多頁編輯器
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+- `lib/pdfExtract.ts`（新增）：pdfjs-dist 動態 import + 文字層抽取
+- `ScriptEditClient.tsx` 升級為多頁版（頁碼可改、刪頁、新增頁、行型別切換、上下移、插入、刪除）
+- 匯入頁加 PDF tab
+
+### M21 — 圖片 OCR（Tesseract.js）
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+- `lib/ocrService.ts`（新增）：Tesseract.js dynamic import；`chi_tra` + `eng` 語言包 lazy load；進度回呼
+- 匯入頁加圖片 tab；單張圖約 5–20 秒
+- README 註明直書識別率限制
+
+### M22 — audioSegments 綁 scriptId + 文件同步 + v4 完工
+
+**負責**：dev-trio（PM + Dev + QA）
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+
+- **IndexedDB schema v4 → v5**：
+  - `lib/audioStorage.ts`：`DB_VERSION` 4 → 5；`onupgradeneeded` 新增 `oldVersion < 5` 分支，在同一個 versionchange transaction 內 `collectLegacySegments` cursor 撈舊 records → `deleteObjectStore` → `createObjectStore`（新 keyPath `[scriptId, characterKey, globalIndex]` + `byCharacter` index）→ 對每筆補 `scriptId = 'default'` 與 `scriptHash = ''` fallback 後 `put` 回；不 await 外部 promise（避免跨 transaction）
+  - 跨多版本升級（v0/v2/v3 → v5）由 stepwise `if (oldVersion < N)` 分支自動串接
+  - `isAudioSegmentRecord` 加 `scriptId` 字串驗證
+- **5 個 segment API 簽名升級**（皆加 scriptId 參數，TS strict）：
+  - `putAudioSegment(record)` — record 含 scriptId
+  - `getAudioSegment(scriptId, characterKey, globalIndex)`
+  - `getAllSegments(scriptId, characterKey)`
+  - `deleteAllSegmentsForCharacter(scriptId, characterKey)`
+  - `countSegmentsByCharacter(scriptId)`
+  - `getFirstSegment(scriptId, characterKey)`（額外）
+  - `byCharacter` index 維持單欄 `characterKey`；多劇本撈取時在 cursor / getAll 結果上以 `scriptId === sid` 過濾
+- **型別**：`lib/types.ts` `AudioSegmentRecord` 新增 `scriptId: string`
+- **下游 caller 全部升級**（zero leftover）：
+  - `hooks/useAudioSegments.ts`：簽名改為 `useAudioSegments(scriptId, characters, script)`；`scriptIdRef` 同步保留；refresh / removeAll 全部帶 scriptId；`scriptId === null` 時保留 loading 不開查詢
+  - `hooks/useScript.ts`：回傳新增 `scriptId` 欄位（從 IDB ScriptRecord.id 取得；fallback `loadScript()` 路徑為 null）
+  - `components/setup/AudioManager.tsx`：新增 `scriptId` prop，傳給 useAudioSegments
+  - `app/page.tsx`：從 useScript 拿 scriptId 傳給 AudioManager
+  - `components/record/RecordClient.tsx`：useScript 取 scriptId；`getAllSegments` 帶 scriptId；handleConfirm 寫入 record 含 scriptId（scriptId 未就緒時顯示錯誤、不寫入）
+  - `app/rehearse/page.tsx`：RehearseInner 接收 scriptId prop；`getSegment` callback 帶 scriptId（null 時 `Promise.resolve(null)` 直走 TTS）
+- **文件同步**：
+  - `SPEC-SCRIPT.md`（新增 v1.0）：§1 動機 / §2 設計原則 / §3 多劇本資料模型 + IDB v5 schema / §4 匯入管線 / §5 OCR 規格 / §6 解析器啟發式 / §7 編輯 UI / §8 整合 / §9 里程碑 / §10 驗收 / §11 非範圍
+  - `SPEC.md` §3：標註 v4 起改為多劇本，附 ScriptRecord 型別
+  - `SPEC-AUDIO.md` §4.1：補 v5 keyPath 擴充與 migration 說明
+  - `README.md`：功能特色加 v4 條目；IndexedDB schema 章節重寫為 v5；新增「v4 多劇本與匯入」章節（含 OCR 限制提醒）；已知限制移除「沒有編輯器」
+  - `TEST-FLOW.md`：新增 v4 補測 Step 8–10（匯入 + 多劇本隔離 + IDB 升級），通關項目從 10 增至 13
+  - `PROGRESS.md`：M18–M22 各補實作摘要 + 專案狀態升級為「v4 完工」
+
+**驗證**：
+
+- `npx tsc --noEmit` exit 0、無輸出
+- `npm run build` exit 0、6/6 頁全綠；bundle 對比 M21（保守估）：`/` 8.02 kB / 116 kB、`/rehearse` 10.5 kB / 119 kB、`/record/[characterKey]` 6.09 kB / 115 kB、`/scripts/[id]/edit` 4.33 kB / 109 kB、`/scripts/import` 5.87 kB / 114 kB；shared chunks 103 kB
+- 增量：純型別與 callback 加 scriptId 參數，無新依賴；bundle 浮動在 ±0.x kB 範圍
+
+**QA 通過要點**：
+
+- v0 → v5、v2 → v5、v3 → v5、v4 → v5 跨版本升級分支經 stepwise `if (oldVersion < N)` 串接，皆能在單次 `onupgradeneeded` 完成
+- migration 期間使用 `event.target.transaction`（透過 `req.transaction`）的同一 transaction；以 `void collectLegacySegments(...).then(...)` 啟動但不 await，所有 IDB 動作（cursor / delete / create / put）落在同一交易內
+- `byCharacter` index 維持單欄；多劇本下同名角色由結果端過濾 `scriptId` 解決（trade-off：簡化 migration，cost 為 O(N) 過濾，N 為該角色全劇本 records 總和，仍極小）
+- `useScript().scriptId === null` 時：錄音頁顯示 saving error 並阻擋寫入；對練頁 `getSegment` 直接回 null → fallback TTS（不影響 v1.0 純 TTS 行為）
+
+**明確不做（M22 範圍外）**：
+
+- byCharacter index 改為複合 `[scriptId, characterKey]`：MVP 不需；多劇本下單一 character 的 record 數量極小（< 100），單欄 index + JS 過濾足夠
+- v5 之前殘留 `getFirstSegment` 簽名（內含 deprecated 包裝）：已於 M22 一併升級為三段 scriptId 簽名，未保留兼容 stub
+- 解決 `/calibrate` redirect 殼：v3 已清理完畢，M22 無相關殘留
+
+---
 
 ### M17 — 多劇本資料層基礎（scripts store + seed default）
 
 **負責**：dev-trio（PM + 資深 Next.js/TS Dev + 資深 QA）
-**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過 / **自動 seed default 邏輯於 M28 撤除**
 
 **目標**：建立多劇本資料層最小骨架，**不改任何 UI 行為**；後續 M18–M22 才逐步切源、加入匯入／編輯／OCR。
 
@@ -275,6 +388,204 @@
 - M12 條件 4 v1 升級 toast：v1 三 store 已於 onupgrade 直接刪除，無資料可救
 - StatusBar segment fetch in-flight loading 徽章：推 v3.1 backlog
 - SPEC-AUDIO.md v2 章節精簡：維持考古
+
+---
+
+## v5 — 元件重構（已結案）
+
+> 目標：將 v4 階段隨功能堆疊出的 5 個肥大檔（單檔 500+ 行、UI 與業務邏輯混雜）逐個拆分；**0 規格變更、0 行為變更、0 對外簽名變更**。
+> 5 個里程碑：M23 ScriptEditClient → M24 PlainTextImportClient → M25 RecordClient → M26 useRehearsal → M27 audioStorage（+ v5 完工結案）。
+> 規格文件不更新（重構不改規格）；本章節為唯一文件變更入口。
+
+| 里程碑                                                          | 狀態    | 開始       | 完成       | QA 狀態 |
+| --------------------------------------------------------------- | ------- | ---------- | ---------- | ------- |
+| M23 — ScriptEditClient.tsx 拆分（876 → 234）                    | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M24 — PlainTextImportClient.tsx 拆分（598 → 194）               | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M25 — RecordClient.tsx 拆分（564 → 242）                        | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M26 — useRehearsal.ts 拆分（550 → 301）                         | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+| M27 — audioStorage.ts 拆分（508 → 240）+ v5 完工結案            | 🟢 完成 | 2026-05-16 | 2026-05-16 | 🟢 通過 |
+
+### M23 — ScriptEditClient.tsx 拆分
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+
+- `components/scripts/ScriptEditClient.tsx`：876 → 234（**-642 行 / -73%**），只保留頂層編輯頁殼與表單佈局
+- 新增 hook `hooks/useScriptEdit.ts`（170 行）：集中所有編輯狀態（pages / dirty / lastSaved / 衝突偵測 / 儲存 callback）
+- 業務操作邏輯抽到 `lib/scriptEdit.ts`（308 行，新增）：純函式如 `insertLine` / `deleteLine` / `moveLineUp` / `moveLineDown` / `togglePageBreak` / `swapLineType` 等，無 React 相依
+- ScriptEditClient 內聯 UI 子區塊（頁籤、行編輯器、刪除確認）以 inline component 寫法保留視覺結構
+
+**QA 結論**：🟢 通過。所有編輯快捷鍵 / dirty flag / 儲存流程 / 跨頁切換不掉資料 行為一致，型別 strict 通過。
+
+**潛在問題**：lib/scriptEdit.ts 純函式無單元測試（v5 後續若加 testing infra 應補）
+
+### M24 — PlainTextImportClient.tsx 拆分
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+
+- `components/scripts/PlainTextImportClient.tsx`：598 → 194（**-404 行 / -67.6%**），只保留輸入區 + 預覽 + 行動按鈕殼
+- 新增 hook `hooks/useCreateScript.ts`（78 行）：將解析 → 命名 → putScript → setActiveScriptId → 跳轉路由的副作用流程封裝
+- PDF / OCR 入口走相同 hook 介面，但分別由 `hooks/usePdfImport.ts`（53 行）與 `hooks/useOcrImport.ts`（119 行）負責檔案讀取 + worker 呼叫，再交給 useCreateScript 落地
+- 解析啟發式維持 `lib/scriptParser.ts` 不動
+
+**QA 結論**：🟢 通過。三路匯入（純文字 / PDF / 圖片）成功率、命名 fallback、active script 切換、編輯頁路由 行為一致。
+
+**潛在問題**：useCreateScript 與三個 importer hooks 之間的型別 contract 未在 lib 層中央定義（小規模 OK）
+
+### M25 — RecordClient.tsx 拆分
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+
+- `components/record/RecordClient.tsx`：564 → 242（**-322 行 / -57%**），只保留頂層 page client + 狀態管線編排
+- 新增 record 子元件：
+  - `components/record/RecordHeader.tsx`：標題 + 角色資訊 + 返回按鈕
+  - `components/record/LineDisplay.tsx`：當前台詞顯示 + 已錄/未錄徽章
+  - `components/record/MiniMap.tsx`（66 行）：縮圖式進度條（行對應錄音狀態）
+  - `components/record/RecorderControls.tsx`（145 行）：錄音按鈕 + 播放預覽 + 確認 / 重錄 / 跳過
+  - `components/record/RecordStatusScreens.tsx`（95 行）：權限失敗 / scriptId 缺失 / 完成 全螢幕狀態畫面
+- 新增 hooks：
+  - `hooks/useRecordingTimer.ts`（46 行）：rAF 計時器封裝
+  - `hooks/usePreviewUrl.ts`：Blob → object URL 生命週期管理 + 卸載 revoke
+- `lib/recordingFlow.ts`（59 行，新增）：錄音狀態機（idle / recording / preview / saving）的純函式 reducer
+
+**QA 結論**：🟢 通過。MediaRecorder 流程、URL revoke 防漏、scriptId null 防護、確認後跳下一行 行為一致。
+
+**潛在問題**：MiniMap 在劇本超過 200 行時可能視覺擁擠（M14 已知限制，v5 範圍外）
+
+### M26 — useRehearsal.ts 拆分
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+
+- `hooks/useRehearsal.ts`：550 → 301（**-249 行 / -45.3%**），只保留狀態機協調與對外 API
+- 新增 effect-only hooks（各自負責一個副作用通道）：
+  - `hooks/useTTSEffect.ts`（112 行）：監聽 `status === 'system_speaking'` 自動呼叫 TTS 並在結束時 transition
+  - `hooks/useSTTEffect.ts`（80 行）：監聽 `status === 'waiting_actor'` 啟動 STT、結果 fuzzy match 後 transition
+  - `hooks/useAudioPlaybackEffect.ts`（137 行）：在 system_speaking 時優先嘗試 segment 播放（fallback TTS）
+  - `hooks/useRehearsalPersistence.ts`（128 行）：lastLineIndex / lastCharacter / practiceCount 持久化到 localStorage
+- 各 effect 透過 useRehearsal 暴露的 dispatch / setters 互通；狀態機核心 `lib/stateMachine.ts` 0 變化
+
+**QA 結論**：🟢 通過。5 態轉移、鍵盤快捷鍵、Esc pause、tab blur pause、segment / TTS fallback 行為一致；React StrictMode 雙 mount 下無 effect 重複觸發。
+
+**潛在問題**：4 個 effect hooks 透過 dispatch 互通，若未來新增第 5 個 effect 需評估是否升級為集中 reducer
+
+### M27 — audioStorage.ts 拆分 + v5 完工結案
+
+**狀態**：🟢 完成（2026-05-16） / QA 🟢 通過
+
+**交付**：
+
+- `lib/audioStorage.ts`：508 → 240（**-268 行 / -52.8%**），只留 6 個 segment 業務 API + `withStore` helper + `isAudioSegmentRecord` 結構驗證 + `estimateQuota` 配額查詢
+- 新增 `lib/idb/promise.ts`（50 行）：`promisifyRequest` / `awaitTransaction` / `assertClient` 三個純工具，無業務相依
+- 新增 `lib/idb/migration.ts`（196 行）：`applyMigration(db, event)` 入口 + 4 個 stepwise 子函式：
+  - `migrateV0ToV2`：刪 v1 三 store + 建初版 audioSegments
+  - `migrateV2ToV3`：cursor 補 scriptHash=""
+  - `migrateV3ToV4`：建 scripts store
+  - `migrateV4ToV5`：cursor 收集 → deleteObjectStore → recreate 三段 keyPath + 補 scriptId='default' 寫回
+  - **嚴格約束**：全程在 versionchange transaction 內、不開新 tx、不 await 外部 Promise；`migrateV4ToV5` 唯一 async 點為 `void collectLegacySegments().then(...)` pattern（cursor request 維持 tx alive）
+- 新增 `lib/idb/connection.ts`（91 行）：schema 常數（DB_NAME / DB_VERSION=5 / STORE_AUDIO_SEGMENTS / INDEX_BY_CHARACTER / STORE_SCRIPTS）+ 單例 `openAudioDB()` + onclose / onversionchange / onblocked 處理
+- `lib/scriptStorage.ts`：240 → 211（**-29 行 / -12.1%**），改 import `lib/idb/connection`（openAudioDB / STORE_SCRIPTS）+ `lib/idb/promise`（三工具），移除重複 helper
+- 6 個 segment 業務 API（putAudioSegment / getAudioSegment / getAllSegments / deleteAllSegmentsForCharacter / countSegmentsByCharacter / getFirstSegment）與 8 個 script 業務 API（listScripts / getScript / putScript / deleteScript / renameScript / getActiveScriptId / setActiveScriptId / subscribeActiveScriptId）簽名 0 變化
+- 4 條 migration 路徑（v0 / v2 / v3 / v4 → v5）QA stepwise 模擬全綠
+
+**驗證**：
+
+- `npx tsc --noEmit` exit 0、無輸出
+- `npm run build` exit 0、6/6 頁全綠；bundle 對比 M22：`/` 8.02 → 8.08 kB、`/rehearse` 10.5 → 10.8 kB、`/record/[characterKey]` 6.09 → 6.51 kB、`/scripts/[id]/edit` 4.33 → 6.72 kB、`/scripts/import` 5.87 → 5.72 kB；shared chunks 維持 103 kB
+- 5 個重構檔總計從 3096 行降至 1211 行（**-1885 行 / -60.9%**），同時新增 13 個輔助 hooks/元件/lib 檔分擔職責；專案總可維護性顯著提升
+
+**QA 通過要點**：
+
+- IDB schema 行為 100% 一致：v0/v2/v3/v4 → v5 跨版本升級分支以 stepwise `if (oldVersion < N)` 串接，皆在單次 `onupgradeneeded` 完成；migration tx 邊界透過「同步 void 函式 + `void cursor.then(...)` keep-alive」維持
+- 6 個 segment 業務 API + 8 個 script 業務 API 簽名 0 變化，下游 caller（app/rehearse / app/page / hooks/useAudioSegments / hooks/useDoneSegments / components/record/RecordClient / components/setup/AudioManager）0 改動
+- SSR 守衛全部保留並以 `assertClient(api)` 統一入口；`assertClient` 內部仍檢查 `typeof window` 與 `typeof window.indexedDB`
+- 單例 dbPromise cache 仍由 connection.ts 持有；onclose / onversionchange / onblocked 三個 handler 完整保留並 null-out cache
+
+**潛在問題（追蹤項）**：
+
+1. `connection.ts` ↔ `migration.ts` 之間具有微 ESM 循環依賴（connection 用 applyMigration runtime call、migration 用 STORE_* 常數模組級 import）。Next.js 15 + SWC 實測 build / tsc 皆通過。長期建議抽 `lib/idb/constants.ts` 純常數檔徹底解環
+2. `getFirstSegment` 在 v5 schema 下走 byCharacter index cursor，極端多劇本下首呼可能需走過數百筆才命中。M27 維持 v4 行為，未做進一步優化；未來可考慮把 `byCharacter` index 升級為複合 `[scriptId, characterKey]`
+3. `migration.ts` 的 `void promise.then(...)` 是 IDB spec 允許但易誤用 pattern：未來維護者若在 then callback 內 await 非 IDB 動作，tx 會 auto-commit 致 `TransactionInactiveError`。檔頭 doc comment 已用「**嚴格約束**」強調
+
+**明確不做（M27 / v5 結案範圍外）**：
+
+- 規格文件變更（SPEC.md / SPEC-AUDIO.md / SPEC-SCRIPT.md 全部 0 改動，重構不改規格）
+- TEST-FLOW.md 更新：v4 已含 13 通關項目，v5 重構行為 0 變化，無新增測試項
+- 抽 lib/idb/constants.ts：列為 v5.x 小整理項
+- `byCharacter` index 升級為複合 keyPath：列為 v5.x 觀察項
+- segment CRUD 進一步搬入 lib/idb/segments.ts：本次保留於 audioStorage.ts（業務 API 與型別驗證自然分層）
+
+---
+
+## v6 — 移除預設劇本 + 首頁空狀態（完成）
+
+### M28 — 首頁空狀態（無劇本不渲染角色/錄音入口）+ 移除自動 seed default + 移除 script.json
+
+**負責**：dev-trio（PM + 資深 Next.js/TS Dev + 資深 QA）
+**狀態**：🟢 完成（2026-05-16） / QA 🟡 條件通過（code 全綠，僅 doc 殘留已於收尾補齊）
+
+**動機**：v5 收斂後使用者拍板兩個關鍵需求 — (A) 完全移除「載入內建範例劇本」入口（含 `script.json` / `public/script.json` / `predev`-`prebuild`-`sync-script` npm scripts 與 `lib/script.ts` 的 `loadScript()`），(B) 允許刪光所有劇本回到空狀態。M17 引入的「首次 mount 時若 scripts store 為空 → 自動 seed `id='default'` 劇本」違反需求 (A)，本里程碑整段撤除。
+
+**交付**：
+
+- `app/page.tsx`：
+  - 刪除 M17 的「seed 預設劇本」useEffect（原 line 101–130）
+  - 新增 `scriptsCount` state（`null` 表示載入中），mount 時 `listScripts()` 取長度，並 `subscribeActiveScriptId` 變動時刷新（刪除最後一份後即時切空狀態）
+  - 新增空狀態分支：`scriptsCount === 0` 只渲染標題 + 引導文案 + 「匯入劇本」CTA，**不渲染** ScriptSwitcher / 上次練到 / CharacterPicker / RangePicker / HintModePicker / AudioManager / 開始對練
+  - `canStart` 條件加入 `scriptId !== null`
+  - 「上次練到」加角色存在性檢查（`practice.lastCharacter in script.characters`）
+  - `AudioManager` 包在 `scriptId !== null && characters.length > 0` 條件內
+  - 錯誤頁文案移除「請確認 /script.json 存在」字樣
+- `hooks/useScript.ts`：移除 `loadScript()` fallback；active id 對應 record 不存在時回 `{ script: null, scriptId: null, loading: false, error: null }`（非錯誤狀態）；JSDoc 同步更新
+- `lib/scriptStorage.ts`：新增 `clearActiveScriptId()`，行為與 `setActiveScriptId` 對偶（removeItem + dispatch `ACTIVE_SCRIPT_CHANGED_EVENT` with `detail: null`）；SSR 守衛同模式
+- `components/setup/ScriptSwitcher.tsx`：
+  - 放寬「至少保留一份」限制，刪除按鈕不再因 `onlyOne` 禁用，移除 `onlyOne` 變數
+  - 刪最後一份的 confirm 文案改為「這是最後一份劇本，刪除後將回到空狀態」
+  - 刪除後重新 `listScripts()`：剩 0 份 → `clearActiveScriptId()`；否則維持原本「自動切到其他劇本」邏輯
+  - 移除舊的 `state.scripts.length <= 1` 早期 alert 守衛
+- `lib/script.ts`：移除 `loadScript()` 與相關 validate 助手（`isObject` / `isStringRecord` / `validateLine` / `validatePage` / `validateScript`）；保留 `flattenScript` / `filterByRange` / `getCharacterList` / `getCharacterLines`
+- `package.json`：移除 `"sync-script"` / `"predev"` / `"prebuild"` 三個 npm script
+- **刪除檔案**：`script.json`（專案根目錄）+ `public/script.json`
+- **規格 / 文件同步**：
+  - `SPEC.md` §3：新增 v6 段落 — 「無內建預設劇本，使用者必須匯入；首頁 scripts store 為空時只顯示標題 + 引導文案 + 匯入 CTA；`public/script.json` 與根目錄 `script.json` 一併移除」
+  - `SPEC-AUDIO.md` §v3.11 第 1 條：加註「前提是已匯入並啟用 active script；v6 / M28 起無預設劇本，無 active script 時首頁進入空狀態」；§v3.9 `AudioManager` 掛載條件改為「有 active script 時才掛載」
+  - `README.md`：功能特色加「首次使用需先匯入劇本（文字 / PDF / 圖片 OCR），無內建預設劇本」；「替換為自己的劇本」章節改寫為「匯入自己的劇本」（站內 `/scripts/import`）；劇本管理段落移除「至少需保留一份」與「自動 seed default」字樣；檔案結構移除 `public/script.json`
+  - `TEST-FLOW.md`：新增 Step 0「空狀態（首開 / 清空 IDB 後）」（清空 IDB → 重新開站 → 應看到空狀態 + 匯入 CTA，不應看到任何角色）；安裝啟動段移除 `sync-script` 提及；Step 6 改劇本改為走編輯頁
+  - `PROGRESS.md`（本檔）：本節新增；M17 摘要尾段補後註「於 M28 撤除自動 seed」
+
+**M17 後註（撤除說明）**：M17 為了向後相容把 `public/script.json` 自動 seed 為 `id='default'`，雖然當時必要（v3/v2 升級無痛），但隨 v4 站內匯入完成、v6 拍板「無預設劇本」需求，自動 seed 已不再合適 → 於 M28 整段撤除（含 `loadScript()` / 兩處 `script.json` / npm sync 腳本）。既有環境若仍存在 `id='default'` 的 ScriptRecord 在 IDB 中，不會被刪除（往後僅作為一般使用者匯入劇本看待），刪光所有劇本後落回空狀態。
+
+**驗證**：
+
+- `npx tsc --noEmit` exit 0、無輸出
+- 行為手動：清空 IDB 重啟 → 空狀態；匯入一份劇本 → 自動切到正常 UI；刪除最後一份 → 回空狀態；錯誤訊息不再提及 `/script.json`
+
+**QA 驗收結果**（2026-05-16）：
+
+- [x] `listScripts()` 為空時：首頁不執行任何 seed；不寫入 IDB；不呼叫 `setActiveScriptId` — 佐證 `app/page.tsx:102-131`
+- [x] 空狀態 UI：只有標題 + 引導文案 + 匯入 CTA，其餘區塊全不渲染 — 佐證 `app/page.tsx:242-262`
+- [x] loading 中：顯示「載入中…」，不 flash 空狀態 — 佐證 `app/page.tsx:213-221`（條件 `loading || scriptsCount === null`）
+- [x] 已有劇本：行為與當前一致 — 佐證 `app/page.tsx:284-411`
+- [x] 「上次練到」角色存在性檢查 — 佐證 `app/page.tsx:141-158`
+- [x] AudioManager 只在 `scriptId !== null` 時掛載 — 佐證 `app/page.tsx:378`
+- [x] `canStart` 條件包含 `scriptId !== null` — 佐證 `app/page.tsx:281-282`
+- [x] 匯入完成回首頁可自動切到正常 UI（`subscribeActiveScriptId`）— 佐證 `hooks/useCreateScript.ts:62-64` + `useScript.ts:52-87`
+- [x] 刪除最後一份劇本後 → 回到空狀態 — 佐證 `ScriptSwitcher.tsx:108-128` + `scriptStorage.ts:182-198`
+- [x] `loadScript()` 與 `script.json` / `public/script.json` 都已移除（grep 無殘留）
+- [x] `package.json` 的 `sync-script` / `predev` / `prebuild` 已移除 — 佐證 `package.json:5-10`
+- [x] SPEC / PROGRESS / README / TEST-FLOW 已同步（含主代理收尾補上的 `SPEC-SCRIPT.md §0` 撤除說明 + `TEST-FLOW.md` Step 9/10 殘留修正）
+- [x] `npx tsc --noEmit` exit 0 / `npm run build` 6 routes 全綠
+
+**QA 列出的長期 backlog**（非本里程碑範圍）：
+
+- PracticeState 跨劇本共用 `practiceCountByCharacter` 可能造成同名 character key 計數混疊 → 建議改 per-scriptId 索引
+- `scriptsCount`（首頁本地 state）與 `script`（useScript）兩個獨立 async source 長期可合併到單一 hook 管理
 
 ---
 
@@ -1544,6 +1855,31 @@ SPEC.md 包含 8 大區段：產品定位、技術棧、資料來源、核心功
 
 ---
 
+## 操作守則（dev-trio QA 工程師必讀）
+
+### tsbuildinfo 增量編譯快取必須先清
+
+**問題**：`tsconfig.tsbuildinfo`（TypeScript incremental compile cache）在新增 .ts / .tsx 檔後**不會自動失效**，下次跑 `npx tsc --noEmit` 會出現假性錯誤：
+
+```
+✘ Cannot find module '@/components/scripts/...' or its corresponding type declarations.
+✘ Cannot find module './connection' or its corresponding type declarations.
+```
+
+實際檔案存在、`@/*` path mapping 正確、Next build 也綠燈——但 tsc 因讀到舊快取而誤報。
+
+**踩坑紀錄**：M19（首發）/ M23 / M24 / M26 / M27 各踩一次，每次都花 1–2 分鐘排查才確認是快取問題。
+
+**正確做法**（已寫入 `~/.claude/skills/dev-trio/SKILL.md` Dev 與 QA 兩階段）：
+
+```bash
+rm -f tsconfig.tsbuildinfo && npx tsc --noEmit
+```
+
+任何 dev-trio 子代理跑 typecheck 前都必須先 `rm -f tsconfig.tsbuildinfo`，**不可省略**。`npm run build` 內部 typecheck 不受此快取影響，可正常使用。
+
+---
+
 ## 變更紀錄
 
 | 日期       | 變更                                                                                                                    |
@@ -1565,3 +1901,13 @@ SPEC.md 包含 8 大區段：產品定位、技術棧、資料來源、核心功
 | 2026-05-14 | v2 全部結案 — 11 個里程碑全 🟢，音檔功能完整可用                                                                        |
 | 2026-05-16 | v4 啟動：使用者需求「劇本管理（純文字 / PDF / 圖片 OCR 匯入 + 編輯 UI + 多劇本切換）」，PM 規劃 M17–M22 共 6 個里程碑   |
 | 2026-05-16 | M17 完成：scripts store 骨架 + ScriptRecord 型別 + scriptStorage CRUD + 首頁背景 seed default 劇本；DB_VERSION 3 → 4   |
+| 2026-05-16 | v4 全部結案 — M17–M22 共 6 個里程碑全 🟢，多劇本 + 三路匯入 + audioSegments 跨劇本隔離完工                              |
+| 2026-05-16 | v5 啟動：使用者需求「五個肥大檔（500+ 行）拆分，UI/邏輯解耦」，PM 規劃 M23–M27 共 5 個重構里程碑（0 規格變更、0 行為變更） |
+| 2026-05-16 | M23–M26 完成：ScriptEditClient / PlainTextImportClient / RecordClient / useRehearsal 四檔拆分；新增 10+ hooks 與子元件 |
+| 2026-05-16 | M27 完成 + v5 全部結案 — audioStorage.ts 508→240、lib/idb/ 三檔誕生、scriptStorage 順手 -29 行；28 個里程碑全 🟢            |
+| 2026-05-16 | 操作守則新增「tsbuildinfo 必須先清」一節（dev-trio QA / Dev 階段強制 `rm -f tsconfig.tsbuildinfo`）；同步寫入 SKILL.md          |
+| 2026-05-16 | v6 啟動：加入「資深 UI 設計師」角色至 dev-trio；PM 規劃 M28–M31 共 4 個里程碑；風格目標「紙感、安靜、零 AI 感」          |
+| 2026-05-16 | M28 + M29 完成：12 色亮色 token + Noto Serif/Sans TC 雙字體 + 8 級字級階層；`/` 改作 Landing（SSG 162 B）、原首頁全文搬至 `/setup`；新增 `components/landing/` 五件套 + `components/ui/Button` 含 `<LinkButton>` + `<Card>`；rehearse / record / scripts 內部「回首頁」連結全部改指 `/setup`；QA 全綠 |
+| 2026-05-16 | **Hotfix — IDB store missing**：使用者回報 `Failed to execute 'transaction' on 'IDBDatabase': One of the specified object stores was not found.`；分析發現 `migrateV4ToV5` 在 `oldVersion=0` 路徑以 `.then` microtask 於空 cursor 後 delete + recreate audioSegments，與 versionchange tx auto-commit 存在競態而可能漏建 store。修法：DB_VERSION 5 → 6，新增 `ensureRequiredStores` 在 migration 尾端兜底，凡缺少 STORE_AUDIO_SEGMENTS / STORE_SCRIPTS 就重建（對完整 DB 為 no-op）。`tsc --noEmit` 0 errors。 |
+| 2026-05-17 | **Hotfix v1 — 錄音頁試聽無聲（誤判方向）**：初次猜測 chunk flush 問題，將 `recorder.start()` 改 `recorder.start(500)`；使用者實測仍無聲。 |
+| 2026-05-17 | **Hotfix v2 — 錄音頁「馬上播放沒聲音」（真實根因）**：MediaRecorder 產出的 webm 沒有 duration metadata，`<audio>` `loadedmetadata` 後 `duration === Infinity`，第一次點 play 瀏覽器以為已播完直接無聲。修法：還原 v1 改回 `recorder.start()`；在 `RecorderControls` 內 `useRef` + `useEffect`，於 audio loadedmetadata 後若 duration 非有限值則 `currentTime = Number.MAX_SAFE_INTEGER` 觸發瀏覽器掃完整段算出 duration，timeupdate 後 reset 回 0；後續 play 即正常出聲。`tsc --noEmit` 0 errors。 |

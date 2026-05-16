@@ -1,30 +1,35 @@
 "use client";
 
 /**
- * 首頁 — 對練設定流程
+ * 對練設定頁 — 原 app/page.tsx 搬移至 /setup（M29）。
  *
  * 一頁式（非多步精靈）。畫面由上而下：
  *   1. 標題
- *   2. 「上次練到」（若 PracticeState 存在才顯示）
+ *   2. 「上次練到」（若 PracticeState 存在且角色仍存在於當前劇本才顯示）
  *   3. 角色選擇（CharacterPicker）
  *   4. 範圍選擇（RangePicker）
  *   5. 提示模式（HintModePicker）
  *   6. 主 CTA「開始對練」
  *
+ * 空狀態（M28 起）：當 IndexedDB scripts store 為空 → 只渲染標題 + 引導文案 +
+ * 匯入劇本 CTA；不渲染 ScriptSwitcher / 上次練到 / 角色 / 範圍 / 提示模式 /
+ * AudioManager / 開始對練。
+ *
  * 狀態管理：
  *   - 設定 state（character / range / hintMode）：useState
  *   - 練習紀錄（lastCharacter / lastLineIndex）：useEffect 從 lib/storage 讀取
+ *   - 劇本數量（scriptsCount）：mount + active id 變動時呼叫 listScripts() 重算
  *
  * 「開始對練」流程：
- *   1. 驗證 character 已選 → 否則禁用按鈕
+ *   1. 驗證 character 已選且 scriptId 存在 → 否則禁用按鈕
  *   2. 更新 PracticeState：lastCharacter、lastLineIndex（依 range 推算起始）
  *   3. 寫入 sessionStorage（SessionConfig）
  *   4. router.push('/rehearse')
  *
  * SSR 安全：
  *   - 'use client' 元件
- *   - PracticeState 在 useEffect 內讀取，初次 render 一律顯示 loading fallback
- *   - 與 SPEC §6 一致：不在 server component 引入 lib/storage.ts
+ *   - PracticeState / scriptsCount 在 useEffect 內讀取
+ *   - 首幀一律 loading
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -35,11 +40,10 @@ import { HintModePicker } from "@/components/setup/HintModePicker";
 import { RangePicker } from "@/components/setup/RangePicker";
 import { ScriptSwitcher } from "@/components/setup/ScriptSwitcher";
 import { useScript } from "@/hooks/useScript";
-import { filterByRange, getCharacterList, loadScript } from "@/lib/script";
+import { filterByRange, getCharacterList } from "@/lib/script";
 import {
   listScripts,
-  putScript,
-  setActiveScriptId,
+  subscribeActiveScriptId,
 } from "@/lib/scriptStorage";
 import { loadPracticeState, savePracticeState } from "@/lib/storage";
 import { saveSessionConfig } from "@/lib/sessionConfig";
@@ -48,7 +52,6 @@ import type {
   HintMode,
   PracticeState,
   Range,
-  ScriptRecord,
 } from "@/lib/types";
 
 // ---------- 工具函式 ----------
@@ -80,9 +83,9 @@ function resolveStartIndex(flat: readonly FlatLine[], range: Range): number {
 
 // ---------- 主元件 ----------
 
-export default function HomePage() {
+export default function SetupPage() {
   const router = useRouter();
-  const { script, flat, loading, error } = useScript();
+  const { script, flat, loading, error, scriptId } = useScript();
 
   // 設定 state（受控於本頁）
   const [character, setCharacter] = useState<string | null>(null);
@@ -92,40 +95,38 @@ export default function HomePage() {
   // 練習紀錄（localStorage）
   const [practice, setPractice] = useState<PracticeState | null>(null);
 
+  // 劇本數量（IDB scripts store）；null 表示載入中
+  const [scriptsCount, setScriptsCount] = useState<number | null>(null);
+
   // 掛載後讀取 localStorage（SSR safe）
   useEffect(() => {
     const loaded = loadPracticeState();
     if (loaded) setPractice(loaded);
   }, []);
 
-  // M17：首次 mount 時若 scripts store 為空 → seed 預設劇本。
-  // 背景執行不阻塞 UI；失敗時靜默 console.warn。
+  // 讀取 scripts store 數量；active id 變動時刷新
+  // （刪除最後一份後 clearActiveScriptId → subscribeActiveScriptId 觸發 → 重算 → 切到空狀態）
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        const existing = await listScripts();
-        if (cancelled || existing.length > 0) return;
-        const script = await loadScript();
-        if (cancelled) return;
-        const now = Date.now();
-        const record: ScriptRecord = {
-          id: "default",
-          name: "預設劇本",
-          script,
-          createdAt: now,
-          updatedAt: now,
-          source: "default",
-        };
-        await putScript(record);
-        if (cancelled) return;
-        setActiveScriptId("default");
-      } catch (err) {
-        console.warn("[M17] seed 預設劇本失敗", err);
-      }
-    })();
+    const refresh = (): void => {
+      void (async () => {
+        try {
+          const list = await listScripts();
+          if (cancelled) return;
+          setScriptsCount(list.length);
+        } catch {
+          if (cancelled) return;
+          setScriptsCount(0);
+        }
+      })();
+    };
+    refresh();
+    const unsubscribe = subscribeActiveScriptId(() => {
+      refresh();
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 
@@ -136,19 +137,20 @@ export default function HomePage() {
   );
 
   // 給「上次練到」區塊顯示用：解析行號 → 頁/行
+  // 角色必須存在於當前 script.characters 才顯示，否則隱藏（避免切換劇本後顯示不存在的角色）
   const lastLineInfo = useMemo(() => {
-    if (!practice || flat.length === 0) return null;
+    if (!practice || flat.length === 0 || !script) return null;
+    if (!(practice.lastCharacter in script.characters)) return null;
     const idx = Math.max(
       0,
       Math.min(practice.lastLineIndex, flat.length - 1),
     );
     const line = flat[idx];
     if (!line) return null;
-    const lastCharFull =
-      script?.characters[practice.lastCharacter] ?? practice.lastCharacter;
+    const lastCharFull = script.characters[practice.lastCharacter];
     return {
       characterKey: practice.lastCharacter,
-      characterName: lastCharFull,
+      characterName: lastCharFull ?? practice.lastCharacter,
       page: line.page,
       lineIndexInPage: line.lineIndexInPage,
       globalIndex: idx,
@@ -158,7 +160,7 @@ export default function HomePage() {
   // ---------- 行為 ----------
 
   const handleStart = (): void => {
-    if (!character || flat.length === 0) return;
+    if (!character || flat.length === 0 || scriptId === null) return;
 
     const startIndex = resolveStartIndex(flat, range);
 
@@ -208,7 +210,7 @@ export default function HomePage() {
 
   // ---------- 載入態 / 錯誤態 ----------
 
-  if (loading) {
+  if (loading || scriptsCount === null) {
     return (
       <main className="min-h-screen bg-black text-white">
         <div className="mx-auto max-w-3xl px-6 py-12">
@@ -218,20 +220,57 @@ export default function HomePage() {
     );
   }
 
-  if (error || !script) {
+  if (error) {
     return (
       <main className="min-h-screen bg-black text-white">
         <div className="mx-auto max-w-3xl space-y-4 px-6 py-12">
           <h1 className="text-3xl">劇本對練平台</h1>
           <p className="text-red-400">
             載入劇本失敗：
-            <span className="font-mono">
-              {error ? error.message : "未知錯誤"}
-            </span>
+            <span className="font-mono">{error.message}</span>
           </p>
           <p className="text-sm text-zinc-500">
-            請確認 <span className="font-mono">/script.json</span> 存在且格式正確。
+            請稍後再試，或重新整理頁面。
           </p>
+        </div>
+      </main>
+    );
+  }
+
+  // ---------- 空狀態（尚未匯入任何劇本）----------
+
+  if (scriptsCount === 0) {
+    return (
+      <main className="min-h-screen bg-black text-white">
+        <div className="mx-auto flex max-w-3xl flex-col items-start gap-6 px-6 py-16">
+          <h1 className="text-4xl font-semibold tracking-wide sm:text-5xl">
+            劇本對練平台
+          </h1>
+          <p className="text-base text-zinc-400">
+            尚未匯入任何劇本。請先匯入劇本以開始對練。
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/scripts/import")}
+            className="rounded-md bg-white px-6 py-3 text-base font-medium text-black transition hover:bg-zinc-200"
+          >
+            匯入劇本
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // 有劇本但 active 失效或無 script（極少數情境）
+  if (!script) {
+    return (
+      <main className="min-h-screen bg-black text-white">
+        <div className="mx-auto max-w-3xl space-y-4 px-6 py-12">
+          <h1 className="text-3xl">劇本對練平台</h1>
+          <p className="text-sm text-zinc-500">
+            目前未選擇有效的劇本，請從下方選擇一份劇本。
+          </p>
+          <ScriptSwitcher />
         </div>
       </main>
     );
@@ -239,7 +278,8 @@ export default function HomePage() {
 
   // ---------- 主畫面 ----------
 
-  const canStart = character !== null && flat.length > 0;
+  const canStart =
+    character !== null && flat.length > 0 && scriptId !== null;
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -254,8 +294,19 @@ export default function HomePage() {
           </p>
         </header>
 
-        {/* 劇本切換（M18） */}
-        <ScriptSwitcher />
+        {/* 劇本切換（M18） + 匯入入口（M19） */}
+        <div className="space-y-3">
+          <ScriptSwitcher />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => router.push("/scripts/import")}
+              className="rounded-md border border-zinc-600 px-4 py-2 text-sm text-zinc-100 transition hover:bg-zinc-900"
+            >
+              匯入新劇本（文字 / PDF / 圖片）…
+            </button>
+          </div>
+        </div>
 
         {/* 上次練到 */}
         {lastLineInfo && (
@@ -324,15 +375,18 @@ export default function HomePage() {
         </section>
 
         {/* 音檔管理（v2 新增；預設摺疊，不影響 v1.0 視覺乾淨） */}
-        <section aria-labelledby="section-audio" className="space-y-4">
-          <h2
-            id="section-audio"
-            className="sr-only"
-          >
-            音檔管理
-          </h2>
-          <AudioManager characters={characters} script={script} />
-        </section>
+        {scriptId !== null && characters.length > 0 && (
+          <section aria-labelledby="section-audio" className="space-y-4">
+            <h2 id="section-audio" className="sr-only">
+              音檔管理
+            </h2>
+            <AudioManager
+              characters={characters}
+              script={script}
+              scriptId={scriptId}
+            />
+          </section>
+        )}
 
         {/* CTA */}
         <section className="flex flex-col items-center pt-4">

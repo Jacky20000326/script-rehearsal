@@ -29,7 +29,9 @@
 
 ## 3. 資料來源
 
-劇本資料：`script.json`（已存在於專案根目錄）
+**v1–v3**：唯一劇本資料源 `public/script.json`（已存在於專案根目錄）。
+**v4（M17+）**：多劇本管理（詳見 [SPEC-SCRIPT.md](./SPEC-SCRIPT.md)），`public/script.json` 為「首次啟動 seed 的預設劇本」；使用者可在站內額外匯入純文字 / PDF / 圖片並維護任意份劇本，每份獨立儲存於 IndexedDB `scripts` store，由「active scriptId」（localStorage）指定當前選用。
+**v6 起（M28）**：無內建預設劇本，使用者必須透過 `/scripts/import`（純文字 / PDF / 圖片 OCR）匯入。首頁在 IndexedDB `scripts` store 為空時只顯示標題 + 引導文案 + 「匯入劇本」CTA；刪除最後一份劇本後 `clearActiveScriptId()` 回到此空狀態。`public/script.json` 與根目錄 `script.json` 一併移除。
 
 ```ts
 type Script = {
@@ -45,9 +47,20 @@ type Page = {
 type Line =
   | { character: string; text: string }                 // 角色台詞
   | { type: 'stage_direction'; text: string };          // 舞台指示
+
+// v4 新增（M17）
+type ScriptId = string;
+type ScriptRecord = {
+  id: ScriptId;
+  name: string;
+  script: Script;
+  createdAt: number;
+  updatedAt: number;
+  source: 'default' | 'plain-text' | 'pdf' | 'image-ocr';
+};
 ```
 
-當前資料包含 4 個角色（維/娜塔/胡/卡）共 4 頁（41-44）。
+預設劇本資料包含 4 個角色（維/娜塔/胡/卡）共 4 頁（41-44）。使用者匯入的新劇本則各自獨立。
 
 ## 4. 核心功能規格
 

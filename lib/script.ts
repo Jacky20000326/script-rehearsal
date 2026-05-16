@@ -1,111 +1,24 @@
 /**
- * 劇本載入與扁平化
+ * 劇本扁平化與切片工具
  *
  * 提供：
- *   - loadScript()        從 /script.json 載入並驗證
  *   - flattenScript()     將 pages × lines 攤平為 FlatLine[]
  *   - filterByRange()     依練習範圍切片
  *   - getCharacterList()  取得角色清單（給設定畫面）
+ *   - getCharacterLines() 取得指定角色的所有台詞行（給錄音頁）
  *
- * 注意：本檔案不引入外部驗證套件（如 zod），驗證以手寫 narrowing 完成。
+ * v6 起無內建預設劇本：使用者必須透過 /scripts/import 匯入。
+ * 來源由 useScript 從 IndexedDB 的 active ScriptRecord 取得。
  */
 
 import {
   type FlatLine,
-  type Line,
-  type Page,
   type Range,
   type Script,
   isStageDirection,
 } from "./types";
 
-// ---------- 內部驗證輔助 ----------
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isStringRecord(value: unknown): value is Record<string, string> {
-  if (!isObject(value)) return false;
-  for (const v of Object.values(value)) {
-    if (typeof v !== "string") return false;
-  }
-  return true;
-}
-
-function validateLine(value: unknown, ctx: string): Line {
-  if (!isObject(value)) {
-    throw new Error(`${ctx} 不是物件`);
-  }
-
-  // 舞台指示
-  if (value.type === "stage_direction") {
-    if (typeof value.text !== "string") {
-      throw new Error(`${ctx} 舞台指示缺少字串 text 欄位`);
-    }
-    return { type: "stage_direction", text: value.text };
-  }
-
-  // 角色台詞
-  if (typeof value.character === "string" && typeof value.text === "string") {
-    return { character: value.character, text: value.text };
-  }
-
-  throw new Error(
-    `${ctx} 不符合任一 Line 形狀（既非 stage_direction 也非 dialogue）`,
-  );
-}
-
-function validatePage(value: unknown, ctx: string): Page {
-  if (!isObject(value)) {
-    throw new Error(`${ctx} 不是物件`);
-  }
-  if (typeof value.page !== "number" || !Number.isFinite(value.page)) {
-    throw new Error(`${ctx} page 欄位需為有限數字`);
-  }
-  if (!Array.isArray(value.lines)) {
-    throw new Error(`${ctx} lines 欄位需為陣列`);
-  }
-  const lines: Line[] = value.lines.map((line, idx) =>
-    validateLine(line, `${ctx}.lines[${idx}]`),
-  );
-  return { page: value.page, lines };
-}
-
-function validateScript(value: unknown): Script {
-  if (!isObject(value)) {
-    throw new Error("劇本根節點不是物件");
-  }
-  if (!isStringRecord(value.characters)) {
-    throw new Error("劇本 characters 欄位需為 Record<string, string>");
-  }
-  if (!Array.isArray(value.pages)) {
-    throw new Error("劇本 pages 欄位需為陣列");
-  }
-  const pages: Page[] = value.pages.map((page, idx) =>
-    validatePage(page, `pages[${idx}]`),
-  );
-  return { characters: value.characters, pages };
-}
-
 // ---------- Public API ----------
-
-/**
- * 從 /script.json 載入劇本並驗證結構。
- * 失敗時拋出帶有路徑提示的明確錯誤。
- *
- * 注意：此函式可同時在 Server / Client 端呼叫（fetch 為 isomorphic）；
- *      在 Server Component 中亦可改用 `import scriptJson from '@/public/script.json'`，
- *      但為與既有 useScript hook 一致，這裡統一走 fetch。
- */
-export async function loadScript(): Promise<Script> {
-  const res = await fetch("/script.json", { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`載入 script.json 失敗：HTTP ${res.status}`);
-  }
-  const raw: unknown = await res.json();
-  return validateScript(raw);
-}
 
 /**
  * 將 Script 攤平為 FlatLine 陣列。

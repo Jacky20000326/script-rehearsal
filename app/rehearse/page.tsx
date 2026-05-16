@@ -67,7 +67,7 @@ function clampRange(flat: readonly FlatLine[], range: Range): Range | null {
 
 export default function RehearsePage() {
   const router = useRouter();
-  const { script, flat, loading, error } = useScript();
+  const { script, flat, loading, error, scriptId } = useScript();
 
   // 三態：undefined（SSR / 未掛載）/ null（無設定）/ SessionConfig
   const [config, setConfig] = useState<SessionConfig | null | undefined>(
@@ -151,7 +151,8 @@ export default function RehearsePage() {
       characterFullName={
         script?.characters[config.character] ?? config.character
       }
-      onBackToSetup={() => router.push("/")}
+      scriptId={scriptId}
+      onBackToSetup={() => router.push("/setup")}
     />
   );
 }
@@ -163,19 +164,24 @@ function RehearseInner({
   config,
   characters,
   characterFullName,
+  scriptId,
   onBackToSetup,
 }: {
   sliceLines: FlatLine[];
   config: SessionConfig;
   characters: ReadonlyArray<{ key: string; name: string }>;
   characterFullName: string;
+  scriptId: string | null;
   onBackToSetup: () => void;
 }) {
-  // v3 / M15：對手台詞改為「每行一筆 segment」即時查詢；
-  // 命中則播真人錄音，否則 fallback TTS。
+  // v4 / M22：對手台詞查詢改帶 active scriptId，多劇本不串音；
+  // 命中則播真人錄音，否則 fallback TTS。scriptId 為 null 時略過查詢直走 TTS。
   const getSegment = useCallback(
-    (k: string, i: number) => getAudioSegment(k, i),
-    [],
+    (k: string, i: number) => {
+      if (!scriptId) return Promise.resolve(null);
+      return getAudioSegment(scriptId, k, i);
+    },
+    [scriptId],
   );
 
   const r = useRehearsal({
@@ -351,7 +357,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
 function BackToSetup() {
   return (
     <Link
-      href="/"
+      href="/setup"
       className="inline-block rounded border border-zinc-700 px-5 py-2 text-base text-zinc-100 transition hover:bg-zinc-900"
     >
       返回設定

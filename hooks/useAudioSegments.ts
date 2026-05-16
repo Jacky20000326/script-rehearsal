@@ -1,22 +1,23 @@
 "use client";
 
 /**
- * useAudioSegments — 角色「逐行真人錄音」進度查詢 hook（v3 / M16）
+ * useAudioSegments — 角色「逐行真人錄音」進度查詢 hook（v4 / M22）
  *
  * 提供：
  *   - progress  角色簡稱 → { recorded, total, scriptChanged }
- *   - loading   首次查詢中（含 script 尚未載入）
+ *   - loading   首次查詢中（含 script 尚未載入 / scriptId 尚未確定）
  *   - refresh   重新從 IndexedDB 取一次計數
  *   - removeAll 刪除指定角色的所有片段並 refresh
  *
  * 設計重點：
- *   1. recorded 用 `countSegmentsByCharacter()` 一次取齊，避免每角色一筆 query
+ *   1. recorded 用 `countSegmentsByCharacter(scriptId)` 一次取齊，避免每角色一筆 query
  *   2. total 透過 lib/script 的 `getCharacterLines(script, key).length` 算出
  *   3. SSR-safe：window 不存在時略過 IndexedDB 操作，loading 維持 true 直到 mount 後
- *   4. scriptChanged 透過比對「該角色任一筆 segment 的 scriptHash」與「當前劇本的 scriptHash」
- *      得出；無錄音時固定 false
+ *   4. scriptChanged 透過比對「該（scriptId, 角色）任一筆 segment 的 scriptHash」與
+ *      「當前劇本的 scriptHash」得出；無錄音時固定 false
  *   5. refresh 以世代計數（gen）做 cancellation：較新一輪 refresh 啟動時，
  *      舊一輪的非同步結果將被丟棄，避免覆蓋新狀態
+ *   6. scriptId 變動時 totals / counts / changedMap 一律重算（multi-script 不串音）
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -44,6 +45,7 @@ export type UseAudioSegmentsResult = {
 };
 
 export function useAudioSegments(
+  scriptId: string | null,
   characters: readonly { key: string }[],
   script: Script | null,
 ): UseAudioSegmentsResult {
@@ -62,6 +64,11 @@ export function useAudioSegments(
   useEffect(() => {
     scriptRef.current = script;
   }, [script]);
+
+  const scriptIdRef = useRef<string | null>(scriptId);
+  useEffect(() => {
+    scriptIdRef.current = scriptId;
+  }, [scriptId]);
 
   // totals 依 script 算一次；script 為 null 則為空 map
   const totals = useMemo<Record<string, number>>(() => {
@@ -84,7 +91,8 @@ export function useAudioSegments(
   const refresh = useCallback(async (): Promise<void> => {
     if (typeof window === "undefined") return;
     const script = scriptRef.current;
-    if (!script) {
+    const sid = scriptIdRef.current;
+    if (!script || !sid) {
       setLoading(true);
       setCounts({});
       setChangedMap({});
@@ -93,7 +101,7 @@ export function useAudioSegments(
     const myGen = ++refreshGenRef.current;
     try {
       const [raw, currentHash] = await Promise.all([
-        countSegmentsByCharacter(),
+        countSegmentsByCharacter(sid),
         computeScriptHash(script),
       ]);
       if (myGen !== refreshGenRef.current) return;
@@ -108,7 +116,7 @@ export function useAudioSegments(
       const hashEntries = await Promise.all(
         keys.map(async (key): Promise<[string, boolean]> => {
           if ((keep[key] ?? 0) === 0) return [key, false];
-          const first = await getFirstSegment(key);
+          const first = await getFirstSegment(sid, key);
           if (!first) return [key, false];
           return [key, first.scriptHash !== currentHash];
         }),
@@ -134,22 +142,24 @@ export function useAudioSegments(
     }
   }, []);
 
-  // 首次掛載 + characters / script 變動時重新查詢
+  // 首次掛載 + characters / script / scriptId 變動時重新查詢
   useEffect(() => {
-    if (!script) {
+    if (!script || !scriptId) {
       setLoading(true);
       setCounts({});
       setChangedMap({});
       return;
     }
     void refresh();
-  }, [keysSignature, script, refresh]);
+  }, [keysSignature, script, scriptId, refresh]);
 
   const removeAll = useCallback(
     async (characterKey: string): Promise<void> => {
       if (typeof window === "undefined") return;
+      const sid = scriptIdRef.current;
+      if (!sid) return;
       try {
-        await deleteAllSegmentsForCharacter(characterKey);
+        await deleteAllSegmentsForCharacter(sid, characterKey);
         await refresh();
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "刪除角色片段失敗");

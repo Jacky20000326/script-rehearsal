@@ -1,21 +1,134 @@
 @import "tailwindcss";
 
+/* M28 設計系統 tokens（亮色） */
+:root {
+  --surface: #F6F2EA;
+  --surface-elevated: #FBF8F2;
+  --ink-strong: #1C1A17;
+  --ink: #2E2A25;
+  --ink-muted: #8A8377;
+  --accent: #7A4A2B;
+  --accent-hover: #603719;
+  --border: #E6DFD2;
+  --border-strong: #C9C0AE;
+  --focus-ring: #B68B5C;
+  --danger: #8C3A2A;
+  --success: #4F6B3A;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-static: 0 1px 0 rgba(28, 26, 23, 0.04);
+  --shadow-elevated: 0 6px 20px -12px rgba(28, 26, 23, 0.18);
+}
+
+/* Tailwind v4 theme bridge：暴露給 utility class，例如 bg-surface / text-ink-muted */
+@theme {
+  --color-surface: #F6F2EA;
+  --color-surface-elevated: #FBF8F2;
+  --color-ink-strong: #1C1A17;
+  --color-ink: #2E2A25;
+  --color-ink-muted: #8A8377;
+  --color-accent: #7A4A2B;
+  --color-accent-hover: #603719;
+  --color-border: #E6DFD2;
+  --color-border-strong: #C9C0AE;
+  --color-focus-ring: #B68B5C;
+  --color-danger: #8C3A2A;
+  --color-success: #4F6B3A;
+
+  --font-serif-tc:
+    var(--font-serif-tc-google), "Noto Serif TC", "Source Han Serif TC",
+    "Songti TC", "PingFang TC", Georgia, serif;
+  --font-sans-tc:
+    var(--font-sans-tc-google), "Noto Sans TC", "PingFang TC",
+    "Helvetica Neue", "Inter", system-ui, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
 @layer base {
   html,
   body {
-    @apply bg-black text-white;
+    background-color: var(--surface);
+    color: var(--ink);
   }
 
   body {
     @apply min-h-screen antialiased;
-    font-family:
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      "Segoe UI",
-      "PingFang TC",
-      "Heiti TC",
-      "Microsoft JhengHei",
-      sans-serif;
+    font-family: var(--font-sans-tc);
   }
+}
+
+/* M28 字級階層 utility class */
+.text-display {
+  font-family: var(--font-serif-tc);
+  font-weight: 500;
+  font-size: 60px;
+  line-height: 1.18;
+  letter-spacing: 0.02em;
+}
+@media (min-width: 768px) {
+  .text-display {
+    font-size: 72px;
+  }
+}
+.text-h1 {
+  font-family: var(--font-serif-tc);
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+}
+.text-h2 {
+  font-family: var(--font-serif-tc);
+  font-weight: 500;
+  font-size: 28px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+.text-h3 {
+  font-family: var(--font-sans-tc);
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+.text-body-lg {
+  font-family: var(--font-sans-tc);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+}
+.text-body {
+  font-family: var(--font-sans-tc);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+}
+.text-small {
+  font-family: var(--font-sans-tc);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+}
+.text-caption {
+  font-family: var(--font-sans-tc);
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+}
+
+.font-serif {
+  font-family: var(--font-serif-tc);
+}
+.font-sans {
+  font-family: var(--font-sans-tc);
 }
