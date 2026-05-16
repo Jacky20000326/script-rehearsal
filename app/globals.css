@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@layer base {
+  html,
+  body {
+    @apply bg-black text-white;
+  }
+
+  body {
+    @apply min-h-screen antialiased;
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      "PingFang TC",
+      "Heiti TC",
+      "Microsoft JhengHei",
+      sans-serif;
+  }
+}
