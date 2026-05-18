@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>劇本對練平台 — 後端整合教學文件（給前端工程師）</title>
+<style>
+  /* ====== Reset & Base ====== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    line-height: 1.75;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono {
+    font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.92em;
+  }
+
+  /* ====== Layout ====== */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+  aside.toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 20px;
+    background: #010409;
+    border-right: 1px solid #21262d;
+  }
+  aside.toc h3 {
+    color: #f0f6fc;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #21262d;
+  }
+  aside.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: ch;
+  }
+  aside.toc li {
+    counter-increment: ch;
+    margin: 4px 0;
+  }
+  aside.toc a {
+    display: block;
+    padding: 6px 10px;
+    color: #8b949e;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 13.5px;
+    transition: all 0.15s;
+  }
+  aside.toc a:hover {
+    background: #161b22;
+    color: #58a6ff;
+  }
+  aside.toc a::before {
+    content: counter(ch, decimal-leading-zero) " · ";
+    color: #484f58;
+    margin-right: 4px;
+  }
+  main {
+    padding: 60px 80px 120px 80px;
+    max-width: 920px;
+  }
+
+  /* ====== Typography ====== */
+  h1 {
+    font-size: 34px;
+    color: #f0f6fc;
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+  h2 {
+    font-size: 26px;
+    color: #f0f6fc;
+    margin: 64px 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #21262d;
+    font-weight: 700;
+    scroll-margin-top: 24px;
+  }
+  h3 {
+    font-size: 19px;
+    color: #f0f6fc;
+    margin: 32px 0 12px 0;
+    font-weight: 600;
+  }
+  h4 {
+    font-size: 16px;
+    color: #f0f6fc;
+    margin: 24px 0 8px 0;
+    font-weight: 600;
+  }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 6px 0; }
+  strong { color: #f0f6fc; font-weight: 600; }
+  a { color: #58a6ff; }
+  hr {
+    border: none;
+    border-top: 1px solid #21262d;
+    margin: 48px 0;
+  }
+
+  /* ====== Code ====== */
+  code {
+    background: #161b22;
+    border: 1px solid #30363d;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #d2a8ff;
+  }
+  pre {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: #c9d1d9;
+  }
+  .kw   { color: #ff7b72; }   /* keyword */
+  .str  { color: #a5d6ff; }   /* string */
+  .num  { color: #79c0ff; }   /* number */
+  .cmt  { color: #8b949e; font-style: italic; }
+  .typ  { color: #ffa657; }   /* type */
+  .fn   { color: #d2a8ff; }   /* function */
+
+  /* ====== Callout Boxes ====== */
+  .box {
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-left: 4px solid;
+  }
+  .box .label {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .box p:first-of-type { margin-top: 0; }
+  .box p:last-child { margin-bottom: 0; }
+  .info     { background: #0c2d6b22; border-color: #1f6feb; }
+  .info .label     { color: #58a6ff; }
+  .warn     { background: #4d1f0022; border-color: #db6d28; }
+  .warn .label     { color: #f0883e; }
+  .danger   { background: #67060c22; border-color: #f85149; }
+  .danger .label   { color: #ff7b72; }
+  .success  { background: #03351322; border-color: #2ea043; }
+  .success .label  { color: #56d364; }
+  .tip      { background: #2e1a4f22; border-color: #a371f7; }
+  .tip .label      { color: #d2a8ff; }
+
+  .box-frontend {
+    background: #08243d;
+    border: 1px solid #1f6feb55;
+    border-radius: 8px;
+    padding: 14px 20px;
+    margin: 18px 0;
+  }
+  .box-frontend .label {
+    display: block;
+    font-size: 11px;
+    color: #58a6ff;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  /* ====== Tables ====== */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid #30363d;
+    padding: 10px 14px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #161b22;
+    color: #f0f6fc;
+    font-weight: 600;
+  }
+  tr:nth-child(even) td { background: #0d1117; }
+  tr:nth-child(odd) td  { background: #11161d; }
+
+  /* ====== Diagrams (ASCII / boxes) ====== */
+  .diagram {
+    background: #010409;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    white-space: pre;
+    overflow-x: auto;
+    color: #79c0ff;
+    line-height: 1.5;
+    font-size: 13px;
+  }
+
+  /* ====== Two-column compare ====== */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .compare > div {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px 20px;
+  }
+  .compare h4 {
+    margin-top: 0;
+    color: #f0f6fc;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .compare .bad  { border-color: #f8514955; }
+  .compare .bad  h4 { color: #ff7b72; }
+  .compare .good { border-color: #2ea04355; }
+  .compare .good h4 { color: #56d364; }
+
+  /* ====== Glossary ====== */
+  dl.glossary { margin: 16px 0; }
+  dl.glossary dt {
+    color: #f0f6fc;
+    font-weight: 600;
+    margin-top: 16px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 14px;
+  }
+  dl.glossary dd {
+    margin-left: 0;
+    color: #c9d1d9;
+    padding-left: 16px;
+    border-left: 2px solid #30363d;
+    margin-top: 4px;
+  }
+
+  /* ====== Header ====== */
+  .header {
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  .header .meta {
+    color: #8b949e;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .header .meta span { margin-right: 16px; }
+
+  /* ====== Responsive ====== */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    aside.toc { position: static; height: auto; border-right: none; border-bottom: 1px solid #21262d; }
+    main { padding: 32px 24px 80px; }
+    .compare { grid-template-columns: 1fr; }
+  }
+
+  /* ====== Misc ====== */
+  .pill {
+    display: inline-block;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 12px;
+    color: #8b949e;
+    margin-right: 6px;
+  }
+  .pill.ok   { color: #56d364; border-color: #2ea04355; }
+  .pill.warn { color: #f0883e; border-color: #db6d2855; }
+  .pill.no   { color: #ff7b72; border-color: #f8514955; }
+
+  details {
+    background: #11161d;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0;
+  }
+  summary {
+    cursor: pointer;
+    color: #58a6ff;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<aside class="toc">
+  <h3>章節導覽</h3>
+  <ol>
+    <li><a href="#ch0">先建立心智模型</a></li>
+    <li><a href="#ch1">後端到底是什麼</a></li>
+    <li><a href="#ch2">認識 Supabase</a></li>
+    <li><a href="#ch3">認識 Cloudflare R2</a></li>
+    <li><a href="#ch4">認證（Authentication）</a></li>
+    <li><a href="#ch5">授權與 RLS</a></li>
+    <li><a href="#ch6">API 是什麼</a></li>
+    <li><a href="#ch7">Presigned URL 直傳</a></li>
+    <li><a href="#ch8">資料同步協定</a></li>
+    <li><a href="#ch9">環境變數與安全</a></li>
+    <li><a href="#ch10">端到端完整流程</a></li>
+    <li><a href="#ch11">常見誤解與陷阱</a></li>
+    <li><a href="#ch12">詞彙對照表</a></li>
+    <li><a href="#ch13">延伸閱讀</a></li>
+  </ol>
+</aside>
+
+<main>
+
+<div class="header">
+  <h1>劇本對練平台 — 後端整合教學文件</h1>
+  <div class="meta">
+    <span><strong>對象：</strong>前端工程師（不熟悉後端）</span>
+    <span><strong>版本：</strong>v1.0</span>
+    <span><strong>日期：</strong>2026-05-17</span>
+  </div>
+  <p style="color:#8b949e; margin-top:12px;">本文件是 <code>SPEC-BACKEND.md</code> 的<strong>教學版</strong>。SPEC 告訴你「要做什麼」；本文件告訴你「這些名詞是什麼、為什麼這樣設計、有什麼陷阱」。讀完之後你應該能看懂 SPEC，並且能與後端工程師對話。</p>
+</div>
+
+<div class="box info">
+  <span class="label">怎麼閱讀</span>
+  <p>依序讀。每章開頭都有「<strong>前端類比</strong>」幫你銜接已知概念。看到 <span class="pill warn">注意</span> 框務必停下來想清楚 — 那是常見誤區。看到 <span class="pill no">危險</span> 框是會出大事的雷區。</p>
+</div>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch0">0. 先建立心智模型</h2>
+
+<p>在開始學任何技術名詞之前，先想清楚我們要解決的問題。</p>
+
+<h3>0.1 為什麼純前端不夠用</h3>
+
+<p>你目前的劇本對練平台是<strong>純前端</strong>：劇本與錄音都存在瀏覽器的 IndexedDB 裡。這帶來三個無解的問題：</p>
+
+<ol>
+  <li><strong>換裝置就消失。</strong>手機錄的音檔，電腦看不到。</li>
+  <li><strong>清瀏覽器資料就消失。</strong>使用者點一下「清除快取」，半年的錄音就沒了。</li>
+  <li><strong>無法分享。</strong>導演想看你錄的版本？沒辦法傳給他。</li>
+</ol>
+
+<p>要解決這三個問題，<strong>資料必須存在「某個雙方都能連到的地方」</strong>。這個地方就是「雲端」，提供這個地方的程式就是「後端」。</p>
+
+<h3>0.2 心智模型：把「後端」想成一個共享硬碟</h3>
+
+<div class="diagram">
+  ┌────────────┐         ┌─────────┐         ┌────────────┐
+  │  你的手機  │ ──────► │ 共享硬碟│ ◄────── │  你的電腦  │
+  └────────────┘         │ （雲端）│         └────────────┘
+                         └─────────┘
+                              ▲
+                              │
+                         ┌────────────┐
+                         │  導演的電腦│
+                         └────────────┘
+</div>
+
+<p>但這個共享硬碟有幾個前端硬碟沒有的特性：</p>
+
+<ul>
+  <li>它要能<strong>判斷誰可以看什麼</strong>（你不能看別人的錄音 → <em>授權</em>）</li>
+  <li>它要能<strong>確認你真的是你</strong>（不能任何人都自稱是你 → <em>認證</em>）</li>
+  <li>它要能<strong>同時處理很多人</strong>（不能你寫到一半另一個人也寫，資料就亂了）</li>
+  <li>它要能<strong>分類儲存</strong>（小東西如劇本文字 vs 大東西如音檔，存的方式不一樣）</li>
+</ul>
+
+<p>本文件接下來的每一章，都是在解釋「這個共享硬碟」內部的一個機制。</p>
+
+<div class="box-frontend">
+  <span class="label">前端類比</span>
+  <p>「後端」對前端工程師來說，就是一個你<strong>不能直接讀寫的 source of truth</strong>。你只能透過 HTTP request 跟它對話。它的角色等於：把所有人的 localStorage 集中到一台機器，加上「誰可以看誰的」規則。</p>
+</div>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch1">1. 後端到底是什麼</h2>
+
+<h3>1.1 後端 = 「在伺服器上跑的程式」</h3>
+
+<p>「後端」這個詞涵蓋很廣，但對我們這個專案來說，它指的是<strong>三類東西的組合</strong>：</p>
+
+<table>
+  <thead><tr><th>類別</th><th>用途</th><th>本專案的選擇</th></tr></thead>
+  <tbody>
+    <tr><td><strong>資料庫</strong>（Database）</td><td>存結構化資料（劇本內容、使用者資料、權限關係）</td><td>Supabase 內建的 Postgres</td></tr>
+    <tr><td><strong>物件儲存</strong>（Object Storage）</td><td>存「檔案」這種大型二進位資料（音檔 Blob）</td><td>Cloudflare R2</td></tr>
+    <tr><td><strong>運算層</strong>（Compute）</td><td>跑一些前端不能跑的程式（驗證、簽發 URL、cleanup）</td><td>Supabase Edge Functions</td></tr>
+  </tbody>
+</table>
+
+<h3>1.2 資料庫 vs 物件儲存：為什麼要分開</h3>
+
+<div class="compare">
+  <div>
+    <h4>資料庫（Postgres）</h4>
+    <ul>
+      <li>適合<strong>小而多</strong>的結構化資料</li>
+      <li>有 schema（欄位、型別）</li>
+      <li>可以用 SQL 查詢、JOIN、聚合</li>
+      <li>單筆建議 &lt; 1 MB</li>
+      <li>例：使用者列表、劇本台詞文字</li>
+    </ul>
+  </div>
+  <div>
+    <h4>物件儲存（R2）</h4>
+    <ul>
+      <li>適合<strong>大而少</strong>的二進位檔案</li>
+      <li>沒有 schema，就是「一個 key 對一個檔」</li>
+      <li>不能做查詢，只能「取出整個檔」</li>
+      <li>單筆可以到 GB 等級</li>
+      <li>例：音檔、影片、圖片、PDF</li>
+    </ul>
+  </div>
+</div>
+
+<div class="box warn">
+  <span class="label">注意</span>
+  <p>常見錯誤是<strong>把音檔直接存進資料庫的 bytea 欄位</strong>。技術上做得到，但會帶來：(1) DB 備份檔暴增、(2) 查詢 row 時連 Blob 一起拉、(3) 大幅吃光 free tier 配額。<strong>大檔一律走物件儲存。</strong></p>
+</div>
+
+<h3>1.3 為什麼前端不能直接連資料庫</h3>
+
+<p>新手常問：「既然要存資料庫，前端 JS 直接 <code>connect('postgres://...')</code> 不就好了嗎？」答案是<strong>絕對不行</strong>，三個理由：</p>
+
+<ol>
+  <li><strong>密碼會被偷。</strong>前端代碼是公開的，任何人按 F12 都能看到。資料庫密碼放進前端等於把銀行金庫密碼貼在門口。</li>
+  <li><strong>資料庫協定不是給瀏覽器用的。</strong>Postgres 用的是 TCP socket，瀏覽器只支援 HTTP / WebSocket，技術上根本連不上。</li>
+  <li><strong>權限沒辦法做。</strong>就算連得上，也代表前端能讀寫整個資料庫，沒有任何隔離。</li>
+</ol>
+
+<p>所以前端與資料庫之間，永遠要有一層「<strong>會驗證身份、會檢查權限</strong>」的中介。這層可以是：</p>
+
+<ul>
+  <li>傳統作法：自己寫一個 Node.js / Go / Python API server</li>
+  <li>新派作法（我們選的）：用 Supabase — 它<em>幫你寫好了這層</em>，前端透過 <code>supabase-js</code> 用 HTTP 與它對話</li>
+</ul>
+
+<div class="box-frontend">
+  <span class="label">前端類比</span>
+  <p>Supabase 的角色像一個「<strong>幫你包好的 BaaS</strong>」（Backend as a Service）。你不需要寫 Express、不需要設定資料庫連線池、不需要自己寫 JWT 驗證 — 都包好了。你只需要呼叫類似 <code>supabase.from('scripts').select('*')</code> 這種 API。</p>
+</div>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch2">2. 認識 Supabase</h2>
+
+<h3>2.1 一句話定義</h3>
+
+<p><strong>Supabase 是一個開源的 BaaS（Backend as a Service），底層是 PostgreSQL，把資料庫、認證、檔案儲存、即時推播打包成可直接用 HTTP 呼叫的服務。</strong></p>
+
+<p>網路上常拿來與 Firebase 對比：</p>
+
+<table>
+  <thead><tr><th></th><th>Firebase（Google）</th><th>Supabase</th></tr></thead>
+  <tbody>
+    <tr><td>底層 DB</td><td>Firestore（NoSQL 文件式）</td><td>PostgreSQL（關聯式）</td></tr>
+    <tr><td>查詢語言</td><td>自家 API</td><td>SQL（標準）</td></tr>
+    <tr><td>開源</td><td>否</td><td>是</td></tr>
+    <tr><td>可自架</td><td>否</td><td>是</td></tr>
+    <tr><td>權限模型</td><td>Security Rules（DSL）</td><td>Row Level Security（PostgreSQL 內建）</td></tr>
+  </tbody>
+</table>
+
+<h3>2.2 Supabase 包含的子服務</h3>
+
+<table>
+  <thead><tr><th>子服務</th><th>本專案用到</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>Database (Postgres)</td><td class="mono">✓</td><td>存劇本、使用者、segment metadata</td></tr>
+    <tr><td>Auth</td><td class="mono">✓</td><td>使用者註冊登入、JWT 發放</td></tr>
+    <tr><td>Storage</td><td class="mono">✗</td><td>檔案儲存（free 只有 1 GB，所以音檔不放這）</td></tr>
+    <tr><td>Edge Functions</td><td class="mono">✓</td><td>跑後端程式碼（簽 R2 presigned URL）</td></tr>
+    <tr><td>Realtime</td><td class="mono">✓</td><td>訂閱 DB 變動，做跨裝置即時推播</td></tr>
+  </tbody>
+</table>
+
+<h3>2.3 你的前端如何與 Supabase 對話</h3>
+
+<p>透過官方 SDK <code>@supabase/supabase-js</code>。建立 client 後，操作 DB 看起來像這樣：</p>
+
+<pre><code><span class="cmt">// 在前端瀏覽器執行</span>
+<span class="kw">import</span> { createClient } <span class="kw">from</span> <span class="str">'@supabase/supabase-js'</span>;
+
+<span class="kw">const</span> supabase = <span class="fn">createClient</span>(
+  process.env.<span class="typ">NEXT_PUBLIC_SUPABASE_URL</span>,
+  process.env.<span class="typ">NEXT_PUBLIC_SUPABASE_ANON_KEY</span>
+);
+
+<span class="cmt">// 讀取資料 — 這背後其實是發 HTTP GET 給 Supabase</span>
+<span class="kw">const</span> { data, error } = <span class="kw">await</span> supabase
+  .<span class="fn">from</span>(<span class="str">'scripts'</span>)
+  .<span class="fn">select</span>(<span class="str">'*'</span>)
+  .<span class="fn">eq</span>(<span class="str">'owner_id'</span>, userId);
+</code></pre>
+
+<div class="box info">
+  <span class="label">關鍵理解</span>
+  <p><code>supabase.from('scripts').select('*')</code> 並不是「直接連 Postgres」。它在底層是發一個 HTTP request 到 Supabase 的 REST API（叫做 PostgREST），由 PostgREST 把你的 query 翻譯成 SQL 後執行，再把結果 JSON 回傳。</p>
+  <p>所以你寫的 JS 看起來像在操作資料庫，但實際上每個動作都是一個 HTTP 來回。</p>
+</div>
+
+<h3>2.4 Free Tier 配額（2026）</h3>
+
+<table>
+  <thead><tr><th>項目</th><th>限制</th><th>本專案會碰到嗎</th></tr></thead>
+  <tbody>
+    <tr><td>Database 大小</td><td>500 MB</td><td>不會（劇本文字 + metadata 遠低於此）</td></tr>
+    <tr><td>Monthly Active Users</td><td>50,000</td><td>不會（< 50 人團隊）</td></tr>
+    <tr><td>Edge Function 呼叫</td><td>500,000 / 月</td><td>不會</td></tr>
+    <tr><td>Storage</td><td>1 GB</td><td><strong>會！</strong>所以我們把音檔放 R2 而非 Supabase Storage</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch3">3. 認識 Cloudflare R2</h2>
+
+<h3>3.1 一句話定義</h3>
+
+<p><strong>Cloudflare R2 是一個 S3 相容的物件儲存服務，最大特色是「下載永遠免費」。</strong></p>
+
+<h3>3.2 什麼是 S3？什麼是物件儲存？</h3>
+
+<p>「<strong>S3</strong>」是 AWS 的物件儲存服務（Simple Storage Service），業界事實標準。「<strong>S3 相容</strong>」意思是別家服務（R2、MinIO、Backblaze B2）都實作了一樣的 API，你可以用同一套 SDK（<code>@aws-sdk/client-s3</code>）操作。</p>
+
+<p><strong>物件儲存</strong>的概念非常簡單：</p>
+
+<div class="diagram">
+                  ┌───────────────────────────────┐
+                  │       Bucket（桶）            │
+                  │                               │
+                  │   key                  value  │
+                  │   ──────────────────  ──────  │
+                  │   user/avatar.jpg     [Blob]  │
+                  │   audio/scene1.webm   [Blob]  │
+                  │   audio/scene2.webm   [Blob]  │
+                  │                               │
+                  └───────────────────────────────┘
+</div>
+
+<p>就是一個巨大的 key-value 倉庫。key 是字串（通常長得像檔案路徑），value 是檔案。沒有資料夾的真實概念，只是用 <code>/</code> 在 key 裡組織而已。</p>
+
+<h3>3.3 R2 vs Supabase Storage vs AWS S3</h3>
+
+<table>
+  <thead><tr><th></th><th>R2</th><th>Supabase Storage</th><th>AWS S3</th></tr></thead>
+  <tbody>
+    <tr><td>Free 儲存</td><td>10 GB</td><td>1 GB</td><td>5 GB（12 個月）</td></tr>
+    <tr><td>Egress 費用</td><td><strong>永遠 $0</strong></td><td>計入頻寬</td><td>$0.09 / GB</td></tr>
+    <tr><td>儲存費用（超過 free）</td><td>$0.015 / GB / 月</td><td>$0.021 / GB / 月</td><td>$0.023 / GB / 月</td></tr>
+    <tr><td>S3 相容</td><td>是</td><td>否（自家 API）</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h3>3.4 為什麼「Egress 永遠 $0」這麼重要</h3>
+
+<p><strong>Egress = 「資料流出雲端」的頻寬</strong>。每次使用者播放音檔，那個 Blob 就要從雲端「流」到使用者的瀏覽器。傳統雲端服務會為這段流量收錢。</p>
+
+<div class="diagram">
+  情境：5 個團員，每人練習一段 10 MB 的劇本，每天聽 20 次
+  =&gt; 每人每天 200 MB egress
+  =&gt; 全團每月 5 人 × 200 MB × 30 天 = 30 GB egress
+
+  在 AWS S3：$0.09 × 30 = $2.7 / 月（看起來不多）
+  在使用者增加到 50 人時：$27 / 月
+  在熱門劇本被回放 100 次時：$270 / 月（爆炸）
+
+  在 R2：$0（無論多少都是零）
+</div>
+
+<div class="box success">
+  <span class="label">關鍵設計</span>
+  <p>R2 的「零 egress」是本專案<strong>能維持近乎零成本</strong>的單一最重要決策。其他選擇只要使用情境一變熱門，帳單就會失控。</p>
+</div>
+
+<h3>3.5 R2 怎麼用？</h3>
+
+<p>R2 本身不認 JWT、不認使用者，它只認「<strong>Access Key + Secret</strong>」（像帳號密碼）。所以前端不能直接拿著 access key 去操作 R2 — 那等於把整個 bucket 的金庫鑰匙塞給每個瀏覽器。</p>
+
+<p>解法是「<strong>Presigned URL</strong>」：由你的後端（Edge Function）用 access key 簽出一個<em>短期、限定動作、限定物件</em>的 URL，把這個 URL 給前端，前端用這個 URL 直接與 R2 對話。詳見第 7 章。</p>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch4">4. 認證（Authentication）</h2>
+
+<h3>4.1 認證 vs 授權 — 兩個常被搞混的詞</h3>
+
+<table>
+  <thead><tr><th></th><th>認證 Authentication</th><th>授權 Authorization</th></tr></thead>
+  <tbody>
+    <tr><td>問題</td><td>你<strong>是誰</strong>？</td><td>你<strong>能做什麼</strong>？</td></tr>
+    <tr><td>例子</td><td>登入時輸入 email 與 magic link</td><td>登入後能不能讀別人的劇本</td></tr>
+    <tr><td>常見技術</td><td>密碼、Magic Link、OAuth、JWT</td><td>RBAC、ABAC、Row Level Security</td></tr>
+  </tbody>
+</table>
+
+<p>本章只談認證；第 5 章談授權。</p>
+
+<h3>4.2 我們選的方案：Magic Link</h3>
+
+<p><strong>Magic Link</strong> 是一種「無密碼認證」。流程是：</p>
+
+<ol>
+  <li>使用者在登入頁輸入 email</li>
+  <li>Supabase 寄一封信，內含一個一次性連結（含 token）</li>
+  <li>使用者點連結 → 瀏覽器把 token 交給 Supabase → 換到 JWT → 登入完成</li>
+</ol>
+
+<div class="box info">
+  <span class="label">為什麼選 Magic Link</span>
+  <p>(1) 不用做密碼欄位、不用做忘記密碼流程。(2) 比密碼安全 — 沒有密碼可以洩漏。(3) 小團隊內部用，email 寄達率不是問題。後續若要擴可以再加 Google OAuth。</p>
+</div>
+
+<h3>4.3 JWT 是什麼</h3>
+
+<p><strong>JWT（JSON Web Token）</strong>是一段「<em>由伺服器簽過名的 JSON</em>」，用來證明「你已經登入、你是誰」。長得像這樣：</p>
+
+<pre><code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhYmMxMjMiLCJlbWFpbCI6ImpqQGcuY29tIn0.x7VsR8Tk...
+</code></pre>
+
+<p>三段以 <code>.</code> 分隔，每段是 base64 編碼：</p>
+
+<table>
+  <thead><tr><th>段</th><th>內容</th><th>誰寫的</th></tr></thead>
+  <tbody>
+    <tr><td>1. Header</td><td><code>{ "alg": "HS256", "typ": "JWT" }</code></td><td>伺服器</td></tr>
+    <tr><td>2. Payload</td><td><code>{ "sub": "abc123", "email": "..." }</code></td><td>伺服器</td></tr>
+    <tr><td>3. Signature</td><td>用伺服器秘鑰對 Header+Payload 算 HMAC</td><td>伺服器</td></tr>
+  </tbody>
+</table>
+
+<div class="box warn">
+  <span class="label">注意</span>
+  <p>JWT 是 <strong>base64 編碼，不是加密</strong>。任何人複製貼到 jwt.io 都能看到內容。所以：(1) 別在 payload 放敏感資訊（密碼、信用卡）。(2) 安全性來自「<em>沒有伺服器的秘鑰，就無法偽造簽名</em>」— 改 payload 一個字，signature 就對不上，後端會拒收。</p>
+</div>
+
+<h3>4.4 完整登入流程序列圖</h3>
+
+<div class="diagram">
+   ┌────────┐         ┌─────────────┐        ┌──────────────┐       ┌──────────┐
+   │ 瀏覽器 │         │ Next.js 前端│        │ Supabase Auth│       │ Email 伺服│
+   └───┬────┘         └──────┬──────┘        └──────┬───────┘       └────┬─────┘
+       │ 輸入 email           │                       │                    │
+       │ 按「登入」          │                       │                    │
+       │─────────────────────►│                       │                    │
+       │                      │ signInWithOtp(email) │                    │
+       │                      │──────────────────────►│                    │
+       │                      │                       │ 寄出 magic link    │
+       │                      │                       │───────────────────►│
+       │                      │                       │                    │
+       │                                                                   │
+       │       ⋯⋯⋯⋯⋯⋯ 使用者打開信箱 ⋯⋯⋯⋯⋯⋯                                  │
+       │                                                                   │
+       │ 點擊 https://app/auth/callback?token=xxx                          │
+       │◄──────────────────────────────────────────────────────────────────┤
+       │                      │                       │                    │
+       │ GET /auth/callback   │                       │                    │
+       │─────────────────────►│ exchangeCode(token)   │                    │
+       │                      │──────────────────────►│                    │
+       │                      │       回傳 JWT        │                    │
+       │                      │◄──────────────────────│                    │
+       │   Set-Cookie: jwt    │                       │                    │
+       │◄─────────────────────│                       │                    │
+       │                      │                       │                    │
+       │   之後每次 request    │                       │                    │
+       │   都自動帶 cookie    │                       │                    │
+       │═════════════════════►│═════════════════════►│                    │
+</div>
+
+<h3>4.5 JWT 怎麼被帶回伺服器</h3>
+
+<p>登入後，<code>supabase-js</code> 會把 JWT 存起來。每次你呼叫 <code>supabase.from(...)</code>，它會自動把 JWT 放進 HTTP request 的 <code>Authorization: Bearer &lt;jwt&gt;</code> header，後端就知道是誰在發 request。</p>
+
+<p>儲存位置依設定不同：</p>
+
+<table>
+  <thead><tr><th>儲存方式</th><th>優點</th><th>缺點</th></tr></thead>
+  <tbody>
+    <tr><td>HttpOnly Cookie</td><td>JS 讀不到、防 XSS 偷 token</td><td>需要 SSR 才能用，要小心 CSRF</td></tr>
+    <tr><td>localStorage（預設）</td><td>實作簡單、SPA 友善</td><td>XSS 攻擊可以偷</td></tr>
+  </tbody>
+</table>
+
+<p>本專案用 <code>@supabase/ssr</code> 套件，預設走 cookies，這對 Next.js App Router 最自然。</p>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch5">5. 授權與 Row Level Security (RLS)</h2>
+
+<h3>5.1 問題定義</h3>
+
+<p>登入後，你已經知道使用者「是誰」（認證完成）。下一個問題是：他<strong>能讀寫哪些資料</strong>？</p>
+
+<p>舉例：</p>
+<ul>
+  <li>使用者 A 不能讀使用者 B 的劇本</li>
+  <li>使用者 A 可以讀 B 共享給他的劇本（但不能編輯）</li>
+  <li>使用者 A 只能修改自己錄的音檔，不能改 B 的</li>
+</ul>
+
+<h3>5.2 傳統作法（前端工程師常想到的）</h3>
+
+<div class="compare">
+  <div class="bad">
+    <h4>❌ 在前端 if-else 判斷</h4>
+    <pre><code><span class="kw">if</span> (script.ownerId !== user.id) {
+  <span class="kw">throw</span> <span class="kw">new</span> <span class="typ">Error</span>(<span class="str">'no permission'</span>);
+}
+<span class="cmt">// 然後才呼叫 supabase 讀資料</span></code></pre>
+    <p style="color:#ff7b72; margin-top:8px;"><strong>問題：</strong>任何人改前端 JS，就能繞過。前端的 if 永遠是「<em>UX 提示</em>」，不是「<em>安全</em>」。</p>
+  </div>
+  <div class="bad">
+    <h4>❌ 在 API server 寫 middleware</h4>
+    <pre><code><span class="fn">app.get</span>(<span class="str">'/api/scripts/:id'</span>, (req, res) =&gt; {
+  <span class="kw">if</span> (req.user.id !== script.ownerId) {
+    <span class="kw">return</span> res.<span class="fn">sendStatus</span>(<span class="num">403</span>);
+  }
+  ...
+});</code></pre>
+    <p style="color:#f0883e; margin-top:8px;"><strong>問題：</strong>能用但麻煩 — 每個 endpoint 都要記得寫；忘了一個就是漏洞。</p>
+  </div>
+</div>
+
+<h3>5.3 我們的作法：Row Level Security（RLS）</h3>
+
+<p><strong>RLS 是 PostgreSQL 內建的功能</strong>：在資料庫層為每個 table 寫「<em>哪些 row 對哪些使用者可見</em>」的規則。一旦啟用，所有 query 都會<strong>自動套用這個過濾條件</strong>，不管是前端來的 query、後端來的 query、誰寫的 query 都跑不掉。</p>
+
+<p>規則看起來像這樣（SQL）：</p>
+
+<pre><code><span class="cmt">-- 啟用 RLS</span>
+<span class="kw">alter table</span> scripts <span class="kw">enable row level security</span>;
+
+<span class="cmt">-- 政策：只有 owner 自己才能看到自己的劇本</span>
+<span class="kw">create policy</span> <span class="str">"own scripts"</span>
+  <span class="kw">on</span> scripts <span class="kw">for select</span>
+  <span class="kw">using</span> (owner_id = auth.uid());
+
+<span class="cmt">-- 政策：被 share 的人也能看</span>
+<span class="kw">create policy</span> <span class="str">"shared scripts"</span>
+  <span class="kw">on</span> scripts <span class="kw">for select</span>
+  <span class="kw">using</span> (
+    <span class="kw">exists</span> (
+      <span class="kw">select</span> <span class="num">1</span> <span class="kw">from</span> script_shares
+      <span class="kw">where</span> script_shares.script_id = scripts.id
+        <span class="kw">and</span> script_shares.user_id = auth.uid()
+    )
+  );
+</code></pre>
+
+<p><code>auth.uid()</code> 是 Supabase 提供的 SQL 函式，它會從 JWT 的 <code>sub</code> 欄位取出當前使用者 ID。</p>
+
+<h3>5.4 RLS 在執行時做什麼</h3>
+
+<p>前端發了一個 query：</p>
+
+<pre><code>supabase.<span class="fn">from</span>(<span class="str">'scripts'</span>).<span class="fn">select</span>(<span class="str">'*'</span>);
+</code></pre>
+
+<p>PostgREST 翻成 SQL：</p>
+
+<pre><code><span class="kw">select</span> * <span class="kw">from</span> scripts;
+</code></pre>
+
+<p>但 PostgreSQL 因為有 RLS，<strong>自動加上 WHERE</strong>：</p>
+
+<pre><code><span class="kw">select</span> * <span class="kw">from</span> scripts
+<span class="kw">where</span>  owner_id = auth.uid()                            <span class="cmt">-- own scripts policy</span>
+   <span class="kw">or</span>  <span class="kw">exists</span> (<span class="kw">select</span> <span class="num">1</span> <span class="kw">from</span> script_shares ...);    <span class="cmt">-- shared scripts policy</span>
+</code></pre>
+
+<div class="box success">
+  <span class="label">為什麼這個設計優雅</span>
+  <p>(1) 規則寫在 DB 層，<strong>沒有任何 API 路徑能繞過</strong>。(2) 即便前端 bug 寫錯 query，最壞情況也只是「拿不到資料」，<strong>不會洩漏資料</strong>。(3) 新增 endpoint 不用重寫權限檢查，policy 自動生效。</p>
+</div>
+
+<h3>5.5 RLS 的「狀態」很重要</h3>
+
+<div class="box danger">
+  <span class="label">危險</span>
+  <p>RLS 預設是「<strong>關閉</strong>」的。如果你建了 table 但忘了 <code>alter table ... enable row level security</code>，那個 table 對任何持有 anon key 的人都是<strong>完全公開</strong>的 — 任何人都能讀寫所有 row。</p>
+  <p>建表後第一件事必須是啟用 RLS、寫 policy；本專案的 SPEC 已明文要求 M30~M34 每個 table 都要做這件事。</p>
+</div>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch6">6. API 是什麼</h2>
+
+<h3>6.1 對前端工程師，API 就是 fetch 在打的東西</h3>
+
+<p>你已經很熟 API 了 — 每次寫 <code>fetch('/api/something')</code> 就是在打 API。本章想釐清的是：本專案有哪些 API、誰提供、長什麼樣。</p>
+
+<h3>6.2 本專案會用到的三類 API</h3>
+
+<table>
+  <thead><tr><th>類型</th><th>誰提供</th><th>本專案怎麼用</th></tr></thead>
+  <tbody>
+    <tr><td>PostgREST（自動 DB API）</td><td>Supabase 自動生成</td><td>讀寫 scripts / audio_segments / practice_states</td></tr>
+    <tr><td>Auth API</td><td>Supabase 內建</td><td>登入、登出、refresh token</td></tr>
+    <tr><td>Edge Function（自定義）</td><td>我們自己寫，跑在 Supabase</td><td>簽 R2 presigned URL、清理孤兒物件</td></tr>
+  </tbody>
+</table>
+
+<h3>6.3 PostgREST：把 table 變成 REST API</h3>
+
+<p>Supabase 內建一個叫 <strong>PostgREST</strong> 的工具，把每個 Postgres table 自動變成 REST endpoint：</p>
+
+<pre><code><span class="cmt">// 你寫的 JS</span>
+supabase.<span class="fn">from</span>(<span class="str">'scripts'</span>).<span class="fn">select</span>(<span class="str">'*'</span>).<span class="fn">eq</span>(<span class="str">'id'</span>, <span class="str">'abc'</span>);
+
+<span class="cmt">// 底層發出的 HTTP request</span>
+GET https:<span class="cmt">//xxx.supabase.co/rest/v1/scripts?id=eq.abc</span>
+Authorization: Bearer &lt;jwt&gt;
+apikey: &lt;anon-key&gt;
+</code></pre>
+
+<p>RLS 在這層生效。Supabase 收到 request → 把 JWT 解出 user_id → 把 query 丟給 Postgres → Postgres 套用 RLS policy → 回傳結果。</p>
+
+<h3>6.4 Edge Function：你自己寫的後端程式</h3>
+
+<p>有些事 PostgREST 做不到 — 例如「<strong>幫前端簽一個 R2 presigned URL</strong>」（需要用到 R2 secret key，這 key 絕不能進前端）。這時就需要寫 Edge Function。</p>
+
+<p>Edge Function 是一段你寫的 <strong>Deno（TypeScript）</strong>程式，部署到 Supabase 後變成一個 HTTP endpoint：</p>
+
+<pre><code><span class="cmt">// supabase/functions/audio-upload-url/index.ts</span>
+<span class="kw">import</span> { serve } <span class="kw">from</span> <span class="str">"https://deno.land/std/http/server.ts"</span>;
+
+<span class="fn">serve</span>(<span class="kw">async</span> (req) =&gt; {
+  <span class="cmt">// 1. 驗 JWT</span>
+  <span class="kw">const</span> jwt = req.headers.<span class="fn">get</span>(<span class="str">'Authorization'</span>)?.<span class="fn">replace</span>(<span class="str">'Bearer '</span>, <span class="str">''</span>);
+  <span class="kw">const</span> { data: user } = <span class="kw">await</span> supabase.auth.<span class="fn">getUser</span>(jwt);
+
+  <span class="cmt">// 2. 用 R2 secret 簽一個 5 分鐘 PUT URL</span>
+  <span class="kw">const</span> uploadUrl = <span class="kw">await</span> <span class="fn">signR2PutUrl</span>(...);
+
+  <span class="kw">return</span> <span class="kw">new</span> <span class="typ">Response</span>(<span class="typ">JSON</span>.<span class="fn">stringify</span>({ uploadUrl }));
+});
+</code></pre>
+
+<p>前端透過 <code>supabase.functions.invoke('audio-upload-url', {...})</code> 呼叫它。</p>
+
+<div class="box-frontend">
+  <span class="label">前端類比</span>
+  <p>Edge Function 就像 Next.js 的 API Route 或 Vercel Function — 一段你寫的、跑在伺服器的 TypeScript。差別是它跑在 Supabase 的 Deno runtime，能直接用 Supabase 的 service-role key 操作 DB（繞過 RLS）。</p>
+</div>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch7">7. Presigned URL 直傳模式</h2>
+
+<p>這是整個架構最關鍵、最容易誤解的一章。請仔細看。</p>
+
+<h3>7.1 問題：音檔要怎麼上傳到 R2？</h3>
+
+<p>有兩個直覺但<strong>都錯</strong>的選項：</p>
+
+<div class="compare">
+  <div class="bad">
+    <h4>❌ 選項 A：前端拿 R2 secret 直傳</h4>
+    <p>把 R2 access key + secret 寫在前端 → 用 <code>@aws-sdk/client-s3</code> 直接 PUT。</p>
+    <p style="color:#ff7b72;"><strong>後果：</strong>任何人看你的 JS bundle 就能拿到 secret，整個 bucket 就是他的了。</p>
+  </div>
+  <div class="bad">
+    <h4>❌ 選項 B：音檔流經 Edge Function</h4>
+    <p>前端 POST Blob 給 Edge Function → Edge Function 再轉寫到 R2。</p>
+    <p style="color:#f0883e;"><strong>後果：</strong>Edge Function 有 CPU 時間限制（free tier 通常 50ms）；大檔超時必失敗。即便沒超時，這條路徑也吃 Supabase egress 流量。</p>
+  </div>
+</div>
+
+<h3>7.2 正確解法：Presigned URL</h3>
+
+<p><strong>Presigned URL 是一個「事先由後端簽好名、限時、限定動作」的 URL。前端拿著這個 URL 直接與 R2 對話，不需要任何 secret。</strong></p>
+
+<h4>它是怎麼運作的</h4>
+
+<p>R2（與 S3）支援這種機制：用 access key + secret 對「<em>這個動作 + 這個物件 key + 這個過期時間</em>」做一個 HMAC-SHA256 簽名，把簽名塞進 URL 的 query string。當有人用這個 URL 來 PUT 時，R2 會：</p>
+
+<ol>
+  <li>檢查 URL 是否過期（query 裡的 expiry 時間）</li>
+  <li>用 access key 重新算一次簽名，看是否與 URL 裡的一致</li>
+  <li>檢查動作是否一致（只能做被簽的動作 — PUT 就不能 GET）</li>
+  <li>檢查物件 key 是否一致（不能拿這個 URL 去寫別的 key）</li>
+</ol>
+
+<p>四項都對才允許。否則 403。</p>
+
+<h4>實際 URL 長相</h4>
+
+<pre><code>https://bucket.r2.cloudflarestorage.com/scripts/abc/123/12.webm
+  ?X-Amz-Algorithm=AWS4-HMAC-SHA256
+  &X-Amz-Credential=...
+  &X-Amz-Date=20260517T120000Z
+  &X-Amz-Expires=300                <span class="cmt">// 5 分鐘 = 300 秒</span>
+  &X-Amz-SignedHeaders=host
+  &X-Amz-Signature=&lt;hmac-sha256-hex&gt;
+</code></pre>
+
+<h3>7.3 完整上傳流程</h3>
+
+<div class="diagram">
+   ┌────────┐          ┌─────────────────┐         ┌──────┐
+   │  前端  │          │  Edge Function  │         │  R2  │
+   └───┬────┘          └────────┬────────┘         └──┬───┘
+       │                        │                    │
+       │ (1) 申請 upload URL    │                    │
+       │   POST /audio-upload-  │                    │
+       │   url + JWT            │                    │
+       │───────────────────────►│                    │
+       │                        │ (2) 驗 JWT          │
+       │                        │     寫 metadata     │
+       │                        │     簽 R2 URL       │
+       │                        │                    │
+       │ (3) 回傳 uploadUrl     │                    │
+       │◄───────────────────────│                    │
+       │                                             │
+       │ (4) PUT uploadUrl, body=Blob                │
+       │═════════════════════════════════════════════►│
+       │                                             │
+       │ (5) 200 OK                                  │
+       │◄═════════════════════════════════════════════│
+       │                                             │
+       │ (6) 通知後端「上傳完成」                     │
+       │   POST /audio-upload-  │                    │
+       │   complete             │                    │
+       │───────────────────────►│                    │
+       │                        │ 更新 metadata       │
+       │                        │ status = complete   │
+</div>
+
+<h3>7.4 下載流程（播放音檔）</h3>
+
+<div class="diagram">
+   ┌────────┐          ┌─────────────────┐         ┌──────┐
+   │  前端  │          │  Edge Function  │         │  R2  │
+   └───┬────┘          └────────┬────────┘         └──┬───┘
+       │                        │                    │
+       │ 想播放 segment xyz     │                    │
+       │ (1) 申請 play URL      │                    │
+       │   GET /audio-play-url  │                    │
+       │   ?id=xyz + JWT        │                    │
+       │───────────────────────►│                    │
+       │                        │ 驗 JWT + RLS        │
+       │                        │ 簽 R2 GET URL       │
+       │                        │                    │
+       │ (2) 回傳 playUrl       │                    │
+       │◄───────────────────────│                    │
+       │                                             │
+       │ (3) audio.src = playUrl                     │
+       │   ──or──                                    │
+       │     fetch(playUrl).blob()  快取進 IDB        │
+       │═════════════════════════════════════════════►│
+       │                                             │
+       │ (4) Blob 直接從 R2 流回                      │
+       │◄═════════════════════════════════════════════│
+</div>
+
+<div class="box success">
+  <span class="label">為什麼這個設計很重要</span>
+  <p>音檔的 PUT 與 GET 流量都<strong>不經過 Edge Function</strong>，是前端與 R2 直連。Edge Function 只負責「簽 URL」這件事（幾 KB 資料）。所以：</p>
+  <ul>
+    <li>Edge Function 的 CPU 時間配額永遠燒不完</li>
+    <li>R2 的 egress 永遠 $0</li>
+    <li>整個架構在 50 GB 音檔量級下，月成本 &lt; $1</li>
+  </ul>
+</div>
+
+<h3>7.5 為什麼 URL 要設過期時間</h3>
+
+<p>如果 URL 永久有效，被 leak 出來（例如轉貼到群組、被 referer 帶到外站、被瀏覽器歷史保存）就等於這個物件公開了。5 分鐘 TTL 把風險窗口縮到極小，過期後 URL 自動失效，要再用就重簽。</p>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch8">8. 資料同步協定</h2>
+
+<h3>8.1 目標</h3>
+
+<ul>
+  <li>跨裝置同步：手機改了東西，電腦看得到</li>
+  <li>離線可用：沒網路也能練（已快取的劇本與音檔）</li>
+  <li>衝突處理：兩台裝置同時改同一份劇本，怎麼合併</li>
+</ul>
+
+<h3>8.2 架構：Cloud 為真相，IDB 為快取</h3>
+
+<div class="diagram">
+                  ┌───────────────────────────┐
+                  │   Source of Truth          │
+                  │   ───────────────          │
+                  │   Supabase Postgres        │  ← 權威資料在這裡
+                  │   Cloudflare R2            │
+                  └─────────────▲─────────────┘
+                                │
+                                │ 同步
+                                ▼
+                  ┌───────────────────────────┐
+                  │   本地 IndexedDB           │  ← 離線時的「副本」
+                  │   ─────────────────        │
+                  │   scripts, audio segments, │
+                  │   practice_states          │
+                  └───────────────────────────┘
+</div>
+
+<h3>8.3 寫入路徑：樂觀更新 + 背景同步</h3>
+
+<p>當使用者改了東西，<strong>不要等雲端回應再更新 UI</strong> — 那樣會卡。改成：</p>
+
+<ol>
+  <li>立即寫 IDB → React state 更新 → UI 即時反映</li>
+  <li>同時發 request 寫雲端</li>
+  <li>雲端成功 → 標記這筆 record 為「已同步」</li>
+  <li>雲端失敗（離線 / 500）→ 標記為「dirty」，存進 <code>sync_queue</code></li>
+  <li><code>online</code> 事件觸發時，依序 flush <code>sync_queue</code></li>
+</ol>
+
+<div class="box-frontend">
+  <span class="label">前端類比</span>
+  <p>這就是 React Query / SWR 的 <code>onMutate</code> + <code>onError</code> 的概念。本質是 <strong>optimistic update</strong>：先假裝成功更新 UI，背景失敗再回滾或重試。</p>
+</div>
+
+<h3>8.4 讀取路徑：IDB 優先，背景對齊</h3>
+
+<ol>
+  <li>頁面 mount → 從 IDB 讀劇本 → 立刻渲染（毫秒級）</li>
+  <li>同時發雲端 query → 拿到結果 → 比較 <code>updated_at</code> → 較新者覆蓋 IDB → 觸發 React 重新渲染</li>
+  <li>同時訂閱 Supabase Realtime → 雲端有人改 → patch IDB → 觸發重新渲染</li>
+</ol>
+
+<h3>8.5 衝突解決：Last Write Wins（LWW）</h3>
+
+<p><strong>規則：哪邊的 <code>updated_at</code> 比較新，就以哪邊為準。</strong></p>
+
+<p>場景：</p>
+<ul>
+  <li>A 裝置 10:00 改劇本</li>
+  <li>B 裝置 10:05 改同一份劇本（A 的修改還沒同步到雲端）</li>
+  <li>網路恢復後 B 的修改先到，雲端 <code>updated_at = 10:05</code></li>
+  <li>A 嘗試 push 自己的 10:00 修改 → 後端比較發現自己的 <code>updated_at</code> 較舊 → 拒絕，A 拉回雲端版本覆蓋本地</li>
+</ul>
+
+<div class="box warn">
+  <span class="label">注意</span>
+  <p>LWW 的缺點是 <strong>會丟資料</strong>：A 在 10:00~10:05 間做的修改，會被 B 的版本覆蓋掉。對小團隊、低同時編輯機率的場景可接受；要徹底解決需要 CRDT（如 Yjs、Automerge），複雜度高一個數量級，本專案 v1 不做。</p>
+</div>
+
+<h3>8.6 為什麼不做 CRDT</h3>
+
+<p><strong>CRDT</strong>（Conflict-free Replicated Data Type）是一種資料結構，能讓多端同時修改後<em>自動 merge</em> 而不丟資料。Google Docs、Linear、Figma 都用類似技術。</p>
+
+<p>但它代價很大：</p>
+<ul>
+  <li>每次修改都要產生 operation log，資料量翻倍以上</li>
+  <li>需要重寫整個資料模型（不能用普通 row，要用 op log）</li>
+  <li>複雜度進階很多，debug 困難</li>
+</ul>
+
+<p>小團隊（&lt; 50 人）+ 個人練稿 + 偶爾共享的場景，LWW 已經夠用。等真的有「兩個人同時編輯同一個劇本」的痛點，再上 CRDT 不遲。</p>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch9">9. 環境變數與安全</h2>
+
+<p>這章是新手最容易出大事的地方。請完整看完。</p>
+
+<h3>9.1 NEXT_PUBLIC_ 前綴的真正意義</h3>
+
+<p>Next.js 規定：環境變數以 <code>NEXT_PUBLIC_</code> 開頭的，<strong>會在 build 時被「內嵌」進前端 bundle</strong>，瀏覽器拿得到。沒這個前綴的，只有 server 端（API Route、Server Component、Edge Function）能讀。</p>
+
+<div class="diagram">
+   .env.local
+   ┌─────────────────────────────────────────────────┐
+   │  NEXT_PUBLIC_SUPABASE_URL=https://xxx.co        │ ← 會被打包進前端 JS
+   │  NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJh...          │ ← 會被打包進前端 JS
+   │  SUPABASE_SERVICE_ROLE_KEY=eyJh...              │ ← 不會打包，server 才讀得到
+   │  R2_SECRET_ACCESS_KEY=abc123...                 │ ← 不會打包，server 才讀得到
+   └─────────────────────────────────────────────────┘
+
+                            ↓ next build
+
+   client.js（瀏覽器下載）
+   ┌─────────────────────────────────────────────────┐
+   │  const url = "https://xxx.co";                  │
+   │  const key = "eyJh...";  ← anon key 直接內嵌    │
+   │  // service-role 與 R2 secret 完全不在此檔內    │
+   └─────────────────────────────────────────────────┘
+</div>
+
+<div class="box info">
+  <span class="label">關鍵理解</span>
+  <p><code>NEXT_PUBLIC_*</code> 變數<strong>不是「設定」，是「公開常數」</strong>。寫進去就等於貼到公告欄上。</p>
+</div>
+
+<h3>9.2 三把 key 的角色（很重要）</h3>
+
+<table>
+  <thead><tr><th>Key</th><th>權限</th><th>放哪</th><th>洩漏會怎樣</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>ANON_KEY</code></td>
+      <td>受 RLS 約束的<strong>公開</strong> key</td>
+      <td>前端 + 公開 repo OK</td>
+      <td><span class="pill ok">沒事</span> 因為 RLS 擋著</td>
+    </tr>
+    <tr>
+      <td><code>SERVICE_ROLE_KEY</code></td>
+      <td><strong>繞過所有 RLS</strong> 的管理員 key</td>
+      <td>只放 Edge Function Secrets</td>
+      <td><span class="pill no">災難</span> 整個 DB 任由他人讀寫</td>
+    </tr>
+    <tr>
+      <td><code>R2_SECRET_ACCESS_KEY</code></td>
+      <td>整個 R2 bucket 的管理員 key</td>
+      <td>只放 Edge Function Secrets</td>
+      <td><span class="pill no">災難</span> 整個 bucket 任由他人讀寫刪</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box danger">
+  <span class="label">危險：絕對不可以做的事</span>
+  <ul>
+    <li>把 <code>SERVICE_ROLE_KEY</code> 變數名稱寫成 <code>NEXT_PUBLIC_SERVICE_ROLE_KEY</code> → 整個 DB 公開</li>
+    <li>把 <code>R2_SECRET_ACCESS_KEY</code> 寫成 <code>NEXT_PUBLIC_R2_SECRET_ACCESS_KEY</code> → 整個 bucket 公開</li>
+    <li>把 <code>.env.local</code> commit 進 git → 即使 push 到 private repo，也算外洩（協作者、CI、log 都可能看到）</li>
+    <li>在 Next.js Server Component 內寫 <code>console.log(process.env.SERVICE_ROLE_KEY)</code> → 在某些 streaming 場景可能流到前端 HTML</li>
+  </ul>
+  <p>萬一不小心 commit 了 secret：<strong>立刻去 Supabase / R2 dashboard 重新生成一組新的 key</strong>，舊的廢掉。從 git 移除是<em>不夠的</em> — 已經暴露了就當作已外洩。</p>
+</div>
+
+<h3>9.3 為什麼 ANON_KEY 是「安全的公開」</h3>
+
+<p>新手會誤以為 anon key 應該保密。其實它<strong>設計上就是公開的</strong> — 它本身沒有任何權限，只是一張「我是匿名訪客」的入場券。實際能做什麼，完全由 RLS policy 決定。</p>
+
+<p>類比：<strong>anon key 像 API 的 base URL</strong>，service-role key 才像密碼。</p>
+
+<h3>9.4 部署時的 ENV 管理</h3>
+
+<table>
+  <thead><tr><th>環境</th><th>ENV 放哪</th></tr></thead>
+  <tbody>
+    <tr><td>本機開發</td><td><code>.env.local</code>（已被 <code>.gitignore</code> 排除）</td></tr>
+    <tr><td>Vercel 部署</td><td>Vercel Project Settings → Environment Variables</td></tr>
+    <tr><td>Edge Function</td><td>Supabase Dashboard → Function → Secrets</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch10">10. 端到端完整流程</h2>
+
+<p>把所有概念串起來，看一個完整的「<strong>使用者 A 在手機錄音 → 使用者 B 在電腦播放</strong>」流程。</p>
+
+<div class="diagram">
+═══════════════════════════════════════════════════════════════════════════════
+階段 1：使用者 A 錄音並上傳
+═══════════════════════════════════════════════════════════════════════════════
+
+  手機瀏覽器               Supabase                  R2
+  ──────────              ────────                  ───
+  錄音完成
+  Blob: 50 KB
+       │
+       │ POST /functions/v1/audio-upload-url
+       │   { scriptId, characterKey, globalIndex, ... }
+       │   Authorization: Bearer &lt;A 的 JWT&gt;
+       ▼
+                          驗 JWT → A
+                          檢查 RLS（A 對 script 有 write 權限？）
+                          INSERT audio_segments (status: pending)
+                          用 R2 secret 簽 PUT URL（5 分鐘 TTL）
+       ◄───────────────── { uploadUrl, segmentId }
+       │
+       │ PUT uploadUrl, body = Blob, Content-Type: audio/webm
+       ▼
+                                                    驗簽名 + TTL → OK
+                                                    寫入 R2 bucket
+       ◄───────────────────────────────────────── 200 OK
+       │
+       │ POST /functions/v1/audio-upload-complete
+       │   { segmentId }
+       ▼
+                          UPDATE audio_segments
+                            SET status = 'complete'
+                            WHERE id = segmentId AND owner_id = A
+       ◄───────────────── 200 OK
+       │
+       │ 同時：寫一份 Blob 到本地 IDB（離線快取）
+
+═══════════════════════════════════════════════════════════════════════════════
+階段 2：使用者 B 在電腦開啟同一份劇本
+═══════════════════════════════════════════════════════════════════════════════
+
+  電腦瀏覽器               Supabase                  R2
+  ──────────              ────────                  ───
+  登入 B
+       │
+       │ supabase.from('scripts').select('*')
+       ▼
+                          PostgREST 翻 SQL
+                          套 RLS（B own + B 被 share）
+                          回傳 scripts list（含 A 共享的那份）
+       ◄───────────────── [{ id, name, ... }]
+       │
+       │ 寫進本地 IDB
+       │ 渲染 UI
+
+═══════════════════════════════════════════════════════════════════════════════
+階段 3：使用者 B 播放 A 錄的音檔
+═══════════════════════════════════════════════════════════════════════════════
+
+  電腦瀏覽器               Supabase                  R2
+  ──────────              ────────                  ───
+  點擊播放
+  在 IDB 查快取 → 沒有
+       │
+       │ POST /functions/v1/audio-play-url
+       │   { segmentId }
+       │   Authorization: Bearer &lt;B 的 JWT&gt;
+       ▼
+                          驗 JWT → B
+                          檢查 RLS（B 能讀此 segment 嗎？）
+                          → 因為 script_shares 有 B
+                          簽 GET URL（5 分鐘 TTL）
+       ◄───────────────── { playUrl }
+       │
+       │ audio.src = playUrl  或 fetch(playUrl).blob()
+       ▼
+                                                    驗簽名 + TTL → OK
+                                                    回傳 Blob
+       ◄───────────────────────────────────────── 50 KB binary
+       │
+       │ 播放 + 寫進 IDB 快取（下次不用再要 URL）
+
+═══════════════════════════════════════════════════════════════════════════════
+</div>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch11">11. 常見誤解與陷阱</h2>
+
+<h3>11.1 「我在前端檢查了權限應該就安全了」</h3>
+<p>不安全。前端代碼公開，按 F12 就能改。<strong>所有安全檢查都必須在後端（RLS / Edge Function）做</strong>。前端只負責 UX 提示（例如灰掉按鈕）。</p>
+
+<h3>11.2 「JWT 有加密，內容不會被看到」</h3>
+<p>錯。JWT 只是 base64 編碼，<strong>任何人都能解出 payload</strong>。安全性來自「沒有秘鑰無法偽造簽名」。所以 payload 不可放敏感資訊。</p>
+
+<h3>11.3 「我用 anon key 就好，service-role 那個 dashboard 給的 key 我先不用」</h3>
+<p>正確。本專案前端永遠只用 anon key。service-role 只在 Edge Function 的特定場景用（例如要繞過 RLS 做 admin 任務）。</p>
+
+<h3>11.4 「Edge Function 不就是 API Route 嗎？我用 Next.js API Route 寫不行嗎？」</h3>
+<p>技術上可以。但用 Supabase Edge Function 的好處：(1) 與 Supabase 同一個機房，DB latency 低；(2) 用 Supabase 內建的 service-role / auth helper 比較方便；(3) Vercel API Route 有冷啟動，Supabase Edge Function 預熱速度比較穩。第一版建議放 Supabase。</p>
+
+<h3>11.5 「我把音檔的 R2 物件 key 設成公開，就不用 presigned URL 了」</h3>
+<p>不行。一旦設成公開，任何人猜到 key（key 通常是可預測的格式）就能下載。<strong>音檔含真人聲音，屬於個資</strong>，必須走 presigned URL。</p>
+
+<h3>11.6 「presigned URL 有過期時間，那播放音檔到一半過期會中斷嗎？」</h3>
+<p>不會。過期檢查只在 R2 收到 request 時做一次。連線建立後即便 URL 過期，那個串流仍會正常完成。但下次重新請求就要新 URL。</p>
+
+<h3>11.7 「我的 supabase-js 在 Next.js Server Component 用會出問題嗎？」</h3>
+<p>會。<code>@supabase/supabase-js</code> 是給瀏覽器用的，不會處理 cookies。要在 SSR / Server Component 用必須改用 <code>@supabase/ssr</code> 套件，它會正確處理 cookies 讀寫。本專案 M30 會接這個。</p>
+
+<h3>11.8 「資料庫 schema 改了怎麼辦？要不要寫 migration？」</h3>
+<p>要。Supabase 支援用 SQL 檔做 migration（放在 <code>supabase/migrations/</code>）。每次改 schema 都要寫一個 migration 檔，並 commit 進 git，這樣其他人 / CI 才能重現你的 DB 狀態。本專案 M30 起會建立這套流程。</p>
+
+<h3>11.9 「使用者刪帳號了，他的音檔會自動消失嗎？」</h3>
+<p>Postgres 的 row 會（我們設定了 <code>on delete cascade</code>），但 <strong>R2 物件不會自動消失</strong>。R2 不知道 Postgres 在做什麼。本專案 M35 會加一個每日 cron Edge Function，掃出「Postgres 沒有對應 row 的 R2 物件」並刪除。</p>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch12">12. 詞彙對照表</h2>
+
+<p>所有本文件出現的後端名詞，配上前端類比與一句話定義。</p>
+
+<dl class="glossary">
+
+<dt>BaaS（Backend as a Service）</dt>
+<dd>把「後端常用功能（DB、Auth、Storage）」整包提供的雲端服務。Supabase、Firebase、AWS Amplify 都是。前端類比：像 Tailwind CSS 一樣，是「不用從零寫」的後端版本。</dd>
+
+<dt>Postgres / PostgreSQL</dt>
+<dd>開源關聯式資料庫；用 SQL 操作；支援 JSON、RLS、Full-text search 等先進功能。Supabase 底層就是它。</dd>
+
+<dt>PostgREST</dt>
+<dd>把 Postgres table 自動變成 REST API 的工具。你寫 <code>supabase.from('scripts').select()</code> 背後就是它在工作。</dd>
+
+<dt>RLS（Row Level Security）</dt>
+<dd>Postgres 內建功能，可以在 row 層為每個使用者設定可見/可寫條件。前端類比：像 TypeScript 的 type narrowing — 規則寫在某處，全程式自動套用。</dd>
+
+<dt>Policy</dt>
+<dd>RLS 的具體規則。每個 table 可以有多個 policy（OR 關係）。</dd>
+
+<dt>JWT（JSON Web Token）</dt>
+<dd>一段「伺服器簽過名的 JSON」，用來證明你已登入。可被任何人讀，但無法被偽造（除非有秘鑰）。</dd>
+
+<dt>Magic Link</dt>
+<dd>無密碼登入方式：輸入 email → 收到一封含一次性 token 的信 → 點連結即登入。</dd>
+
+<dt>Authentication（認證）</dt>
+<dd>確認「你是誰」。實作通常是 JWT / Session。</dd>
+
+<dt>Authorization（授權）</dt>
+<dd>確認「你能做什麼」。實作通常是 RLS / RBAC。</dd>
+
+<dt>Object Storage（物件儲存）</dt>
+<dd>專門存大檔的服務。沒有 schema，就是 key-value 倉庫。例：R2、S3。</dd>
+
+<dt>S3-compatible</dt>
+<dd>實作了 AWS S3 API 的服務，可以用同一套 SDK 操作。R2、MinIO、Backblaze B2 都是。</dd>
+
+<dt>Bucket</dt>
+<dd>物件儲存的「桶」，類似一個 namespace。你的物件 key 在這個 bucket 內唯一。</dd>
+
+<dt>Presigned URL</dt>
+<dd>由後端用 secret 簽過的、限時、限定動作的 URL。前端拿著它直接讀寫物件儲存，不需要 secret。</dd>
+
+<dt>Egress</dt>
+<dd>「資料流出雲端」的頻寬。多數雲端服務會收費，R2 不收（這是它最大賣點）。</dd>
+
+<dt>Edge Function</dt>
+<dd>跑在雲端邊緣節點的小段程式碼，接收 HTTP request 後執行。可以做 PostgREST 做不到的事（簽 URL、複雜計算）。</dd>
+
+<dt>Realtime（postgres_changes）</dt>
+<dd>Supabase 提供的 WebSocket 服務。前端訂閱某個 table 的變動，雲端有 INSERT/UPDATE/DELETE 就推到前端。用來做跨裝置即時同步。</dd>
+
+<dt>Service Role Key</dt>
+<dd>Supabase 的管理員 key，<strong>繞過所有 RLS</strong>。絕對不能放前端，只能在 Edge Function 用。</dd>
+
+<dt>Anon Key</dt>
+<dd>Supabase 的匿名訪客 key，受 RLS 約束，<strong>設計上就是公開的</strong>。放前端沒事。</dd>
+
+<dt>LWW（Last Write Wins）</dt>
+<dd>衝突解決策略：哪邊的更新時間較晚就以哪邊為準。簡單但會丟資料。</dd>
+
+<dt>CRDT（Conflict-free Replicated Data Type）</dt>
+<dd>能自動合併多端修改的資料結構，不丟資料。複雜度高，本專案 v1 不做。</dd>
+
+<dt>Optimistic Update（樂觀更新）</dt>
+<dd>UI 不等後端回應就先更新；背景再同步。失敗時回滾。React Query / SWR 內建這套。</dd>
+
+<dt>migration（資料庫遷移）</dt>
+<dd>一段描述「DB schema 怎麼變」的 SQL，commit 進 git 後人人都能重現相同 schema。與 IndexedDB 的 migration 觀念相同。</dd>
+
+<dt>Cascade（連動刪除）</dt>
+<dd>Postgres 的 <code>on delete cascade</code> 設定：父 row 刪除時，所有引用它的 child row 也自動刪除。</dd>
+
+</dl>
+
+<hr>
+
+<!-- ============================================== -->
+<h2 id="ch13">13. 延伸閱讀</h2>
+
+<p>讀完本文件，你應該能：</p>
+<ul>
+  <li>看懂 <code>SPEC-BACKEND.md</code> 整份規格</li>
+  <li>與後端工程師對話不卡關</li>
+  <li>在動手寫 M29 之前知道每個名詞背後在幹嘛</li>
+</ul>
+
+<p>建議下一步：</p>
+
+<details>
+  <summary>動手玩 Supabase（30 分鐘）</summary>
+  <ol style="margin-top:12px;">
+    <li>到 <code>supabase.com</code> 註冊一個免費專案</li>
+    <li>在 Dashboard → SQL Editor 建一個 <code>todos</code> table（id, title, done, owner_id）</li>
+    <li>啟用 RLS，寫一條 policy：只能看到 <code>owner_id = auth.uid()</code> 的 row</li>
+    <li>用 anon key + <code>supabase-js</code> 在 console 試 query，看看 RLS 是不是真的擋了</li>
+  </ol>
+  <p style="margin-top:12px; color:#8b949e;">這個小練習能讓你親眼看到「RLS 怎麼自動套用 WHERE」這件事，理解會比讀十遍文件還快。</p>
+</details>
+
+<details>
+  <summary>動手玩 R2 + presigned URL（30 分鐘）</summary>
+  <ol style="margin-top:12px;">
+    <li>到 <code>dash.cloudflare.com</code> 註冊免費帳號，開啟 R2，建一個 bucket</li>
+    <li>到 R2 → Manage API Tokens 產生一組 access key + secret</li>
+    <li>用 <code>@aws-sdk/s3-request-presigner</code> 在 Node.js 簽一個 PUT URL</li>
+    <li>用 <code>curl -X PUT --data-binary @file.txt &lt;url&gt;</code> 上傳測試</li>
+    <li>到 R2 dashboard 看物件出現了沒</li>
+  </ol>
+</details>
+
+<details>
+  <summary>讀官方文件（按優先順序）</summary>
+  <ul style="margin-top:12px;">
+    <li>Supabase Auth Helpers for Next.js：<code>supabase.com/docs/guides/auth/server-side/nextjs</code></li>
+    <li>Supabase RLS 官方教學：<code>supabase.com/docs/guides/auth/row-level-security</code></li>
+    <li>Cloudflare R2 + Workers：<code>developers.cloudflare.com/r2/api/workers/workers-api-usage</code></li>
+    <li>PostgREST 查詢語法：<code>postgrest.org/en/stable/api.html</code></li>
+  </ul>
+</details>
+
+<hr>
+
+<div style="text-align: center; color: #8b949e; padding: 32px 0;">
+  <p>讀完了。回到 <code>SPEC-BACKEND.md</code>，第 12 章「里程碑與實作流程」應該完全看得懂了。</p>
+  <p style="font-size: 13px; margin-top: 16px;">劇本對練平台 · 後端整合教學文件 v1.0 · 2026-05-17</p>
+</div>
+
+</main>
+
+</div>
+
+</body>
+</html>
